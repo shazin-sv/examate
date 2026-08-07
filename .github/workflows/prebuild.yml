@@ -25,8 +25,12 @@ jobs:
 
       - name: Compile Native iOS Simulator App
         run: |
+          # Dynamically find whatever scheme name Expo generated
+          SCHEME_NAME=$(xcodebuild -list -workspace ios/*.xcworkspace | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[[:space:]]*//' | head -n 1)
+          echo "Detected scheme name: $SCHEME_NAME"
+          
           xcodebuild -workspace ios/*.xcworkspace \
-                     -scheme examate \
+                     -scheme "$SCHEME_NAME" \
                      -sdk iphonesimulator \
                      -configuration Release \
                      derivedDataPath build

@@ -23,23 +23,27 @@ jobs:
       - name: Install CocoaPods
         run: cd ios && pod install
 
-      - name: Compile Native iOS Simulator App
+      - name: Compile Real Native iOS App Bundle
         run: |
           # Automatically select your actual application scheme
           SCHEME_NAME=$(xcodebuild -list -workspace ios/*.xcworkspace | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[[:space:]]*//' | grep -v 'Expo' | head -n 1)
           if [ -z "$SCHEME_NAME" ]; then SCHEME_NAME="Onam2026"; fi
-          echo "Building scheme: $SCHEME_NAME"
+          echo "Building hardware scheme: $SCHEME_NAME"
           
+          # Force compilation for real iPhone device architectures without requiring paid signing profiles
           xcodebuild -workspace ios/*.xcworkspace \
                      -scheme "$SCHEME_NAME" \
-                     -sdk iphonesimulator \
+                     -sdk iphoneos \
                      -configuration Release \
-                     -derivedDataPath build
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGN_IDENTITY=""
 
       - name: Structure Bundle into Scarlet Payload Format
         run: |
           mkdir -p Payload
-          # Search recursively to find the compiled .app bundle anywhere in the build tree
+          # Locate the true physical hardware .app container output
           find build -name "*.app" -exec cp -R {} Payload/ \;
           zip -r EXAMATE.ipa Payload
 

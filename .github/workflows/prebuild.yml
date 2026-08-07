@@ -39,7 +39,8 @@ jobs:
       - name: Structure Bundle into Scarlet Payload Format
         run: |
           mkdir -p Payload
-          cp -R build/Build/Products/Release-iphonesimulator/*.app Payload/
+          # Search recursively to find the compiled .app bundle anywhere in the build tree
+          find build -name "*.app" -exec cp -R {} Payload/ \;
           zip -r EXAMATE.ipa Payload
 
       - name: Upload Finished IPA File

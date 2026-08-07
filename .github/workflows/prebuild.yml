@@ -1,9 +1,9 @@
-name: Generate iOS Native Folder
+name: Generate Scarlet IPA Build
 on:
-  workflow_dispatch: # Allows you to run this manually with one click
+  workflow_dispatch:
 
 jobs:
-  prebuild:
+  build:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -14,16 +14,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Install npm dependencies
         run: npm install
 
-      - name: Run Expo Prebuild on Mac
-        run: npx expo prebuild --platform ios --no-install
+      - name: Install CocoaPods
+        run: cd ios && pod install
 
-      - name: Commit and Push iOS Folder
+      - name: Compile Native iOS Simulator App
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
-          git add ios/
-          git commit -m "Automated iOS folder generation from GitHub Mac Runner"
-          git push origin main
+          xcodebuild -workspace ios/*.xcworkspace \
+                     -scheme Onam2026 \
+                     -sdk iphonesimulator \
+                     -configuration Release \
+                     derivedDataPath build
+
+      - name: Structure Bundle into Scarlet Payload Format
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphonesimulator/*.app Payload/
+          zip -r EXAMATE.ipa Payload
+
+      - name: Upload Finished IPA File
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scarlet-Ready-IPA
+          path: EXAMATE.ipa

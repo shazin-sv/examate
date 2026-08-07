@@ -1,0 +1,29 @@
+name: Generate iOS Native Folder
+on:
+  workflow_dispatch: # Allows you to run this manually with one click
+
+jobs:
+  prebuild:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Expo Prebuild on Mac
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Commit and Push iOS Folder
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          git add ios/
+          git commit -m "Automated iOS folder generation from GitHub Mac Runner"
+          git push origin main

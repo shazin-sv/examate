@@ -25,15 +25,16 @@ jobs:
 
       - name: Compile Native iOS Simulator App
         run: |
-          # Dynamically find whatever scheme name Expo generated
-          SCHEME_NAME=$(xcodebuild -list -workspace ios/*.xcworkspace | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[[:space:]]*//' | head -n 1)
-          echo "Detected scheme name: $SCHEME_NAME"
+          # Automatically select your actual application scheme
+          SCHEME_NAME=$(xcodebuild -list -workspace ios/*.xcworkspace | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[[:space:]]*//' | grep -v 'Expo' | head -n 1)
+          if [ -z "$SCHEME_NAME" ]; then SCHEME_NAME="Onam2026"; fi
+          echo "Building scheme: $SCHEME_NAME"
           
           xcodebuild -workspace ios/*.xcworkspace \
                      -scheme "$SCHEME_NAME" \
                      -sdk iphonesimulator \
                      -configuration Release \
-                     derivedDataPath build
+                     -derivedDataPath build
 
       - name: Structure Bundle into Scarlet Payload Format
         run: |

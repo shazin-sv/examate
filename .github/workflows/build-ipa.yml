@@ -25,9 +25,12 @@ jobs:
       - name: Build unsigned .app (Release, arm64)
         working-directory: ios
         run: |
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Building workspace: $WORKSPACE, scheme: $SCHEME"
           xcodebuild \
-            -workspace "$(ls *.xcworkspace | head -1)" \
-            -scheme "$(basename "$(ls *.xcworkspace | head -1)" .xcworkspace)" \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \

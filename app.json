@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Onam 2026",
-    "slug": "onam-calendar-2026",
+    "name": "The Comeback",
+    "slug": "the-comeback",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.onam.study2026",
+      "bundleIdentifier": "com.thecomeback.app",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -26,7 +26,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "package": "com.onam.study2026"
+      "package": "com.thecomeback.app"
     },
     "plugins": [
       [
@@ -36,7 +36,8 @@
           "color": "#3b82f6"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

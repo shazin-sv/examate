@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
   Modal, StyleSheet, SafeAreaView, Alert,
@@ -6,11 +6,10 @@ import {
 import { formatDate, addDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths,
   getWeek } from '../lib/dateUtils';
-import { CHAPTERS, SUBJECT_COLORS, EXAM_START } from '../data/chapters';
+import { SUBJECT_COLORS } from '../data/chapters';
 import { db } from '../lib/supabase';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const ALL_SUBJECTS = ['PHYSICS', 'CHEMISTRY', 'MATHS', 'COMPUTER SCIENCE', 'ENGLISH', 'HINDI'];
 
 export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 7, 1));
@@ -27,11 +26,9 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
 
   const [panelOrder, setPanelOrder] = useState(['todayPlan', 'theme', 'topics', 'revisions']);
-
-  const [splitRatio, setSplitRatio] = useState(0.55);
-  const mainAreaHeight = useRef(0);
-  const lastTouchY = useRef(0);
-  const dragging = useRef(false);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [subjectsMap, setSubjectsMap] = useState({});
+  const [chaptersMap, setChaptersMap] = useState({});
 
   const examDate = new Date(2026, 7, 14);
   const daysLeft = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
@@ -42,55 +39,50 @@ export default function CalendarScreen() {
   const calEnd = endOfWeek(monthEnd);
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  function onDividerPressIn(e) {
-    dragging.current = true;
-    lastTouchY.current = e.nativeEvent.pageY;
-  }
-
-  function onDividerMove(e) {
-    if (!dragging.current) return;
-    const h = mainAreaHeight.current;
-    if (h <= 0) return;
-    const y = e.nativeEvent.pageY;
-    const dy = y - lastTouchY.current;
-    lastTouchY.current = y;
-    const delta = dy / h;
-    setSplitRatio(prev => Math.max(0.25, Math.min(0.8, prev + delta)));
-  }
-
-  function onDividerPressOut() {
-    dragging.current = false;
-  }
-
-  function resetSplit() {
-    setSplitRatio(0.5);
-  }
-
   useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {
     try {
-      const [schedRes, themeRes, revRes, customRes] = await Promise.all([
+      const [schedRes, themeRes, revRes, customRes, subjectsRes, chaptersRes] = await Promise.all([
         db.getSchedule(), db.getThemes(), db.getRevisions(), db.getCustomChapters(),
+        db.getSubjects(), db.getChapters(),
       ]);
+
       const schedMap = {};
       (schedRes || []).forEach(row => {
         if (!schedMap[row.date_key]) schedMap[row.date_key] = [];
         schedMap[row.date_key].push({ subject: row.subject, name: row.chapter_name, id: row.id });
       });
+
       const themeMap = {};
       (themeRes || []).forEach(row => { themeMap[row.date_key] = row.theme_text; });
+
       const revMap = {};
       (revRes || []).forEach(row => { revMap[row.tag] = { rev1: row.rev1, rev4: row.rev4, rev7: row.rev7 }; });
+
       const customMap = {};
       (customRes || []).forEach(row => {
         if (!customMap[row.subject]) customMap[row.subject] = [];
         customMap[row.subject].push(row.chapter_name);
       });
+
+      const subjs = (subjectsRes || []).sort((a, b) => a.position - b.position);
+      const subjsMap = {};
+      subjs.forEach(s => { subjsMap[s.id] = s; });
+
+      const chapsMap = {};
+      (chaptersRes || []).forEach(c => {
+        if (!chapsMap[c.subject_id]) chapsMap[c.subject_id] = [];
+        chapsMap[c.subject_id].push(c);
+      });
+
       setSchedule(schedMap);
       setThemes(themeMap);
       setRevisions(revMap);
       setCustomChapters(customMap);
+      setAllSubjects(subjs);
+      setSubjectsMap(subjsMap);
+      setChaptersMap(chapsMap);
     } catch (e) { console.log('Load error:', e); }
     setLoading(false);
   }
@@ -149,20 +141,43 @@ export default function CalendarScreen() {
     setPanelOrder(newOrder);
   }
 
+  function getSubjectDisplayName(subj) {
+    return subj.name || 'Unknown';
+  }
+
+  function getSubjectColor(subj) {
+    const name = getSubjectDisplayName(subj);
+    if (subj.color) return { bg: subj.color + '30', fg: subj.color, dot: subj.color };
+    return SUBJECT_COLORS[name] || { bg: '#f1f5f9', fg: '#475569', dot: '#94a3b8' };
+  }
+
+  function getChaptersForSubject(subjId) {
+    return chaptersMap[subjId] || [];
+  }
+
+  const assignSubjectList = allSubjects.length > 0 ? allSubjects : [];
+  const assignChapterList = (() => {
+    const subj = assignSubjectList.find(s => s.id === assignSubject);
+    if (!subj) return [...(customChapters['PHYSICS'] || [])];
+    return getChaptersForSubject(subj.id).map(c => c.name);
+  })();
+
   async function doAssign() {
     if (!assignChapter) return;
     const dk = dateKey(assignDate);
     const existing = schedule[dk] || [];
-    if (existing.find(t => t.subject === assignSubject && t.name === assignChapter)) {
+    if (existing.find(t => t.name === assignChapter)) {
       Alert.alert('Already assigned', `${assignChapter} is already on ${dk}`);
       return;
     }
-    const data = await db.addSchedule({ date_key: dk, subject: assignSubject, chapter_name: assignChapter });
+    const subjObj = assignSubjectList.find(s => s.id === assignSubject);
+    const subjName = subjObj ? getSubjectDisplayName(subjObj) : 'PHYSICS';
+    const data = await db.addSchedule({ date_key: dk, subject: subjName, chapter_name: assignChapter });
     const row = Array.isArray(data) ? data[0] : data;
     if (row && row.id) {
       setSchedule(prev => ({
         ...prev,
-        [dk]: [...(prev[dk] || []), { subject: assignSubject, name: assignChapter, id: row.id }],
+        [dk]: [...(prev[dk] || []), { subject: subjName, name: assignChapter, id: row.id }],
       }));
     }
     setShowAssign(false);
@@ -350,134 +365,134 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.topBar}>
-        <Text style={s.title}>Onam 2026</Text>
-        <View style={s.countdownBox}>
-          <Text style={s.countdownText}>
-            {daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? 'TODAY' : 'Ongoing'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={s.monthNav}>
-        <TouchableOpacity onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} style={s.navBtn}>
-          <Text style={s.navBtnText}>{'<'}</Text>
-        </TouchableOpacity>
-        <Text style={s.monthTitle}>{formatDate(currentMonth, 'MMMM yyyy')}</Text>
-        <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} style={s.navBtn}>
-          <Text style={s.navBtnText}>{'>'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { setCurrentMonth(new Date()); setSelectedDate(new Date()); }} style={s.todayBtn}>
-          <Text style={s.todayBtnText}>Today</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={s.legend}>
-        {ALL_SUBJECTS.map(subj => (
-          <View key={subj} style={s.legendItem}>
-            <View style={[s.legendDot, { backgroundColor: SUBJECT_COLORS[subj].dot }]} />
-            <Text style={s.legendText}>{subj.slice(0, 3)}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View
-        style={s.mainArea}
-        onLayout={(e) => { mainAreaHeight.current = e.nativeEvent.layout.height; }}
+      <ScrollView
+        style={s.scrollContainer}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* CALENDAR GRID */}
-        <View style={[s.calendarSection, { flex: splitRatio }]}>
-          <View style={s.dayHeaders}>
-            {DAY_NAMES.map(d => (
-              <Text key={d} style={s.dayHeader}>{d}</Text>
-            ))}
-          </View>
-          <View style={s.calGrid}>
-            {days.map((day, i) => {
-              const dk = dateKey(day);
-              const inMonth = isSameMonth(day, currentMonth);
-              const selected = isSameDay(day, selectedDate);
-              const todayMark = isToday(day);
-              const topics = schedule[dk] || [];
-              const hasTheme = themes[dk] && themes[dk].trim().length > 0;
-              const revDue = getRevisionsDue(dk);
-              const hasRevDue = revDue.length > 0;
-
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={[s.dayCell, !inMonth && s.dayCellOutside, selected && s.dayCellSelected]}
-                  onPress={() => { setSelectedDate(day); setThemeText(themes[dateKey(day)] || ''); }}
-                  activeOpacity={0.7}
-                >
-                  <View style={s.dayNumRow}>
-                    <View style={[s.dayNum, todayMark && s.dayNumToday]}>
-                      <Text style={[s.dayNumText, todayMark && s.dayNumTextToday]}>{formatDate(day, 'd')}</Text>
-                    </View>
-                    <View style={s.dotsRow}>
-                      {hasTheme && <View style={s.themeDot} />}
-                      {hasRevDue && <View style={s.revDot} />}
-                    </View>
-                  </View>
-                  {topics.slice(0, 2).map((t, j) => {
-                    const sc = SUBJECT_COLORS[t.subject] || SUBJECT_COLORS.PHYSICS;
-                    return (
-                      <View key={j} style={[s.chip, { backgroundColor: sc.bg }]}>
-                        <View style={[s.chipDot, { backgroundColor: sc.dot }]} />
-                        <Text style={[s.chipText, { color: sc.fg }]} numberOfLines={1}>
-                          {t.name.length > 14 ? t.name.slice(0, 12) + '…' : t.name}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                  {topics.length > 2 && <Text style={s.moreText}>+{topics.length - 2}</Text>}
-                </TouchableOpacity>
-              );
-            })}
+        {/* TOP BAR */}
+        <View style={s.topBar}>
+          <Text style={s.title}>The Comeback</Text>
+          <View style={s.countdownBox}>
+            <Text style={s.countdownText}>
+              {daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? 'TODAY' : 'Ongoing'}
+            </Text>
           </View>
         </View>
 
-        {/* DRAGGABLE DIVIDER */}
-        <View
-          style={s.divider}
-          onTouchStart={onDividerPressIn}
-          onTouchMove={onDividerMove}
-          onTouchEnd={onDividerPressOut}
-          onTouchCancel={onDividerPressOut}
-        >
-          <TouchableOpacity onPress={resetSplit} style={s.dividerInner}>
-            <View style={s.dividerHandle} />
+        {/* MONTH NAV */}
+        <View style={s.monthNav}>
+          <TouchableOpacity onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} style={s.navBtn}>
+            <Text style={s.navBtnText}>{'<'}</Text>
+          </TouchableOpacity>
+          <Text style={s.monthTitle}>{formatDate(currentMonth, 'MMMM yyyy')}</Text>
+          <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} style={s.navBtn}>
+            <Text style={s.navBtnText}>{'>'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setCurrentMonth(new Date()); setSelectedDate(new Date()); }} style={s.todayBtn}>
+            <Text style={s.todayBtnText}>Today</Text>
           </TouchableOpacity>
         </View>
 
-        {/* BOTTOM PANEL */}
-        <View style={[s.panelSection, { flex: 1 - splitRatio }]}>
-          <View style={s.sideHeader}>
+        {/* LEGEND */}
+        <View style={s.legend}>
+          {allSubjects.length > 0 ? allSubjects.map(subj => {
+            const sc = getSubjectColor(subj);
+            return (
+              <View key={subj.id} style={s.legendItem}>
+                <View style={[s.legendDot, { backgroundColor: sc.dot }]} />
+                <Text style={s.legendText}>{getSubjectDisplayName(subj).slice(0, 3).toUpperCase()}</Text>
+              </View>
+            );
+          }) : Object.entries(SUBJECT_COLORS).map(([name, sc]) => (
+            <View key={name} style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: sc.dot }]} />
+              <Text style={s.legendText}>{name.slice(0, 3)}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* DAY HEADERS */}
+        <View style={s.dayHeaders}>
+          {DAY_NAMES.map(d => (
+            <Text key={d} style={s.dayHeader}>{d}</Text>
+          ))}
+        </View>
+
+        {/* CALENDAR GRID */}
+        <View style={s.calGrid}>
+          {days.map((day, i) => {
+            const dk = dateKey(day);
+            const inMonth = isSameMonth(day, currentMonth);
+            const selected = isSameDay(day, selectedDate);
+            const todayMark = isToday(day);
+            const topics = schedule[dk] || [];
+            const hasTheme = themes[dk] && themes[dk].trim().length > 0;
+            const revDue = getRevisionsDue(dk);
+            const hasRevDue = revDue.length > 0;
+
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[s.dayCell, !inMonth && s.dayCellOutside, selected && s.dayCellSelected]}
+                onPress={() => { setSelectedDate(day); setThemeText(themes[dateKey(day)] || ''); }}
+                activeOpacity={0.7}
+              >
+                <View style={s.dayNumRow}>
+                  <View style={[s.dayNum, todayMark && s.dayNumToday]}>
+                    <Text style={[s.dayNumText, todayMark && s.dayNumTextToday]}>{formatDate(day, 'd')}</Text>
+                  </View>
+                  <View style={s.dotsRow}>
+                    {hasTheme && <View style={s.themeDot} />}
+                    {hasRevDue && <View style={s.revDot} />}
+                  </View>
+                </View>
+                {topics.slice(0, 2).map((t, j) => {
+                  const sc = SUBJECT_COLORS[t.subject] || SUBJECT_COLORS.PHYSICS;
+                  return (
+                    <View key={j} style={[s.chip, { backgroundColor: sc.bg }]}>
+                      <View style={[s.chipDot, { backgroundColor: sc.dot }]} />
+                      <Text style={[s.chipText, { color: sc.fg }]} numberOfLines={1}>
+                        {t.name.length > 14 ? t.name.slice(0, 12) + '…' : t.name}
+                      </Text>
+                    </View>
+                  );
+                })}
+                {topics.length > 2 && <Text style={s.moreText}>+{topics.length - 2}</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* SELECTED DATE HEADER */}
+        <View style={s.dateInfoBar}>
+          <View>
             <Text style={s.sideDate}>{formatDate(selectedDate, 'MMMM d, yyyy')}</Text>
             <Text style={s.sideDay}>{formatDate(selectedDate, 'EEEE')} · Wk {getWeek(selectedDate)}</Text>
           </View>
-
-          <ScrollView style={s.sideScroll} showsVerticalScrollIndicator={false}>
-            {panelOrder.map((key, idx) => (
-              <View key={key} style={s.panelBlock}>
-                <View style={s.panelReorderRow}>
-                  {idx > 0 && (
-                    <TouchableOpacity onPress={() => movePanel(idx, -1)} style={s.arrowBtn}>
-                      <Text style={s.arrowBtnText}>▲</Text>
-                    </TouchableOpacity>
-                  )}
-                  {idx < panelOrder.length - 1 && (
-                    <TouchableOpacity onPress={() => movePanel(idx, 1)} style={s.arrowBtn}>
-                      <Text style={s.arrowBtnText}>▼</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {renderPanel(key)}
-              </View>
-            ))}
-          </ScrollView>
         </View>
-      </View>
+
+        {/* PANELS */}
+        {panelOrder.map((key, idx) => (
+          <View key={key} style={s.panelBlock}>
+            <View style={s.panelReorderRow}>
+              {idx > 0 && (
+                <TouchableOpacity onPress={() => movePanel(idx, -1)} style={s.arrowBtn}>
+                  <Text style={s.arrowBtnText}>▲</Text>
+                </TouchableOpacity>
+              )}
+              {idx < panelOrder.length - 1 && (
+                <TouchableOpacity onPress={() => movePanel(idx, 1)} style={s.arrowBtn}>
+                  <Text style={s.arrowBtnText}>▼</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {renderPanel(key)}
+          </View>
+        ))}
+
+        <View style={s.bottomPadding} />
+      </ScrollView>
 
       {/* ASSIGN MODAL */}
       <Modal visible={showAssign} transparent animationType="slide">
@@ -488,22 +503,29 @@ export default function CalendarScreen() {
 
             <Text style={s.modalLabel}>Subject</Text>
             <View style={s.subjectRow}>
-              {ALL_SUBJECTS.map(subj => (
-                <TouchableOpacity
-                  key={subj}
-                  style={[s.subjectBtn, assignSubject === subj && { backgroundColor: SUBJECT_COLORS[subj].dot }]}
-                  onPress={() => { setAssignSubject(subj); setAssignChapter(''); }}
-                >
-                  <Text style={[s.subjectBtnText, assignSubject === subj && { color: '#fff' }]}>
-                    {subj.slice(0, 3)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {assignSubjectList.map(subj => {
+                const sc = getSubjectColor(subj);
+                const isActive = subj.id === assignSubject;
+                return (
+                  <TouchableOpacity
+                    key={subj.id}
+                    style={[s.subjectBtn, isActive && { backgroundColor: sc.dot }]}
+                    onPress={() => { setAssignSubject(subj.id); setAssignChapter(''); }}
+                  >
+                    <Text style={[s.subjectBtnText, isActive && { color: '#fff' }]}>
+                      {getSubjectDisplayName(subj).slice(0, 8)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              {assignSubjectList.length === 0 && (
+                <Text style={s.emptyText}>Add subjects in onboarding first</Text>
+              )}
             </View>
 
             <Text style={s.modalLabel}>Chapter</Text>
             <ScrollView style={s.chapterList} nestedScrollEnabled>
-              {[...CHAPTERS[assignSubject], ...(customChapters[assignSubject] || [])].map(ch => (
+              {assignChapterList.map(ch => (
                 <TouchableOpacity
                   key={ch}
                   style={[s.chapterOption, assignChapter === ch && s.chapterOptionSelected]}
@@ -514,11 +536,14 @@ export default function CalendarScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+              {assignChapterList.length === 0 && (
+                <Text style={s.emptyText}>No chapters available</Text>
+              )}
             </ScrollView>
 
             {assignChapter ? (
               <View style={s.previewSection}>
-                <Text style={s.modalLabel}>1-4-7 Schedule</Text>
+                <Text style={s.modalLabel}>Revision Schedule</Text>
                 <View style={s.previewRow}>
                   {assignPreview.map((p, i) => (
                     <View key={i} style={[s.previewItem, { backgroundColor: p.color + '20', borderColor: p.color }]}>
@@ -542,6 +567,7 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
+      {/* FAB */}
       <TouchableOpacity style={s.fab} onPress={() => { setAssignDate(selectedDate); setShowAssign(true); }}>
         <Text style={s.fabText}>+</Text>
       </TouchableOpacity>
@@ -551,6 +577,8 @@ export default function CalendarScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
+  scrollContainer: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   title: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
   countdownBox: { backgroundColor: '#fef2f2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
@@ -565,8 +593,6 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 11, color: '#64748b' },
-  mainArea: { flex: 1 },
-  calendarSection: {},
   dayHeaders: { flexDirection: 'row', backgroundColor: '#f8fafc', paddingVertical: 6 },
   dayHeader: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#64748b' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -585,32 +611,10 @@ const s = StyleSheet.create({
   chipDot: { width: 4, height: 4, borderRadius: 2, marginRight: 3 },
   chipText: { fontSize: 7, fontWeight: '500', flex: 1 },
   moreText: { fontSize: 7, color: '#94a3b8', paddingLeft: 3 },
-
-  divider: {
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#e2e8f0',
-  },
-  dividerInner: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dividerHandle: {
-    width: 48,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#94a3b8',
-  },
-
-  panelSection: {},
-  sideHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  dateInfoBar: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4, borderTopWidth: 1, borderTopColor: '#e2e8f0', marginTop: 2 },
   sideDate: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
   sideDay: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
-  sideScroll: { flex: 1, paddingHorizontal: 16 },
-  panelBlock: { marginBottom: 8 },
+  panelBlock: { paddingHorizontal: 16, marginBottom: 8 },
   panelReorderRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingRight: 4, gap: 8 },
   arrowBtn: { paddingHorizontal: 6, paddingVertical: 2 },
   arrowBtnText: { fontSize: 14, color: '#94a3b8' },
@@ -642,7 +646,8 @@ const s = StyleSheet.create({
   revDueFrom: { fontSize: 10, color: '#b45309' },
   revDueName: { fontSize: 13, fontWeight: '700', marginTop: 4 },
   revDueSubj: { fontSize: 10, fontWeight: '600', marginTop: 1 },
-  fab: { position: 'absolute', right: 20, bottom: 180, width: 52, height: 52, borderRadius: 26, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 },
+  bottomPadding: { height: 20 },
+  fab: { position: 'absolute', right: 20, bottom: 100, width: 52, height: 52, borderRadius: 26, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 },
   fabText: { fontSize: 28, color: '#fff', fontWeight: '300', marginTop: -2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '85%' },

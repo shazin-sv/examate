@@ -3,37 +3,40 @@ import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
   Modal, StyleSheet, SafeAreaView, Alert,
 } from 'react-native';
-import { CHAPTERS, SUBJECT_COLORS } from '../data/chapters';
+import { SUBJECT_COLORS } from '../data/chapters';
 import { db } from '../lib/supabase';
 
-const ALL_SUBJECTS = ['PHYSICS', 'CHEMISTRY', 'MATHS', 'COMPUTER SCIENCE', 'ENGLISH', 'HINDI'];
-
 export default function ChapterLogScreen() {
-  const [activeTab, setActiveTab] = useState('PHYSICS');
-  const [customChapters, setCustomChapters] = useState({});
+  const [subjects, setSubjects] = useState([]);
+  const [chaptersMap, setChaptersMap] = useState({});
   const [schedule, setSchedule] = useState({});
+  const [activeSubjectId, setActiveSubjectId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [newChapter, setNewChapter] = useState('');
   const [editChapter, setEditChapter] = useState('');
-  const [editOldName, setEditOldName] = useState('');
+  const [editChapterId, setEditChapterId] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     try {
-      const [customRes, schedRes] = await Promise.all([
-        db.getCustomChapters(),
+      const [subjs, chaps, schedRes] = await Promise.all([
+        db.getSubjects(),
+        db.getChapters(),
         db.getSchedule(),
       ]);
 
-      const customMap = {};
-      (customRes || []).forEach(row => {
-        if (!customMap[row.subject]) customMap[row.subject] = [];
-        customMap[row.subject].push({ name: row.chapter_name, id: row.id });
+      const sorted = (subjs || []).sort((a, b) => a.position - b.position);
+      setSubjects(sorted);
+
+      const chapsMap = {};
+      (chaps || []).forEach(c => {
+        if (!chapsMap[c.subject_id]) chapsMap[c.subject_id] = [];
+        chapsMap[c.subject_id].push(c);
       });
-      setCustomChapters(customMap);
+      setChaptersMap(chapsMap);
 
       const schedMap = {};
       (schedRes || []).forEach(row => {
@@ -42,103 +45,94 @@ export default function ChapterLogScreen() {
         schedMap[row.subject][row.chapter_name].push(row.date_key);
       });
       setSchedule(schedMap);
-    } catch (e) {
-      console.log(e);
-    }
+
+      if (sorted.length > 0 && !activeSubjectId) {
+        setActiveSubjectId(sorted[0].id);
+      }
+    } catch (e) { console.log(e); }
     setLoading(false);
   }
 
-  function getAllChapters(subj) {
-    return [...(CHAPTERS[subj] || []), ...(customChapters[subj] || []).map(c => c.name)];
+  function getSubjectColor(subj) {
+    if (subj.color) return { bg: subj.color + '30', fg: subj.color, dot: subj.color };
+    return SUBJECT_COLORS[subj.name] || { bg: '#f1f5f9', fg: '#475569', dot: '#94a3b8' };
   }
 
-  // ── ADD CHAPTER ──
+  function getChaptersForActive() {
+    return (chaptersMap[activeSubjectId] || []).sort((a, b) => a.position - b.position);
+  }
+
+  const activeSubject = subjects.find(s => s.id === activeSubjectId);
+  const activeChapters = getChaptersForActive();
+  const sc = activeSubject ? getSubjectColor(activeSubject) : { dot: '#94a3b8', fg: '#475569' };
+
   async function doAdd() {
     const name = newChapter.trim();
     if (!name) return;
-    const all = getAllChapters(activeTab);
-    if (all.includes(name)) {
+    const existing = activeChapters.find(c => c.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
       Alert.alert('Exists', `"${name}" already exists.`);
       return;
     }
-    const data = await db.addCustomChapter({ subject: activeTab, chapter_name: name });
+    const data = await db.addChapter({
+      subject_id: activeSubjectId,
+      name,
+      position: activeChapters.length,
+    });
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && row.id) {
-      setCustomChapters(prev => ({
+    if (row?.id) {
+      setChaptersMap(prev => ({
         ...prev,
-        [activeTab]: [...(prev[activeTab] || []), { name, id: row.id }],
+        [activeSubjectId]: [...(prev[activeSubjectId] || []), row],
       }));
     }
     setNewChapter('');
     setShowAdd(false);
   }
 
-  // ── EDIT CHAPTER ──
   async function doEdit() {
     const newName = editChapter.trim();
-    if (!newName || newName === editOldName) { setShowEdit(false); return; }
-
-    const custom = customChapters[activeTab] || [];
-    const found = custom.find(c => c.name === editOldName);
-    if (found) {
-      await db.updateCustomChapter(found.id, newName);
-    }
-    // Update schedule entries
-    const schedForSubj = schedule[activeTab] || {};
-    if (schedForSubj[editOldName]) {
-      const dates = schedForSubj[editOldName];
-      for (const dk of dates) {
-        const items = await db.getSchedule(); // re-fetch to find and update
-      }
-    }
-
-    setCustomChapters(prev => {
+    if (!newName) { setShowEdit(false); return; }
+    await db.updateChapter(editChapterId, { name: newName });
+    setChaptersMap(prev => {
       const updated = { ...prev };
-      if (updated[activeTab]) {
-        updated[activeTab] = updated[activeTab].map(c =>
-          c.name === editOldName ? { ...c, name: newName } : c
+      if (updated[activeSubjectId]) {
+        updated[activeSubjectId] = updated[activeSubjectId].map(c =>
+          c.id === editChapterId ? { ...c, name: newName } : c
         );
-      }
-      return updated;
-    });
-    setSchedule(prev => {
-      const updated = { ...prev };
-      if (updated[activeTab] && updated[activeTab][editOldName]) {
-        updated[activeTab][newName] = updated[activeTab][editOldName];
-        delete updated[activeTab][editOldName];
       }
       return updated;
     });
     setShowEdit(false);
   }
 
-  // ── DELETE CHAPTER ──
-  async function doDelete(name) {
+  async function doDelete(id, name) {
     Alert.alert('Delete', `Delete "${name}"?`, [
       { text: 'Cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        const custom = customChapters[activeTab] || [];
-        const found = custom.find(c => c.name === name);
-        if (found) {
-          await db.deleteCustomChapter(found.id);
-        }
-        setCustomChapters(prev => ({
+        await db.deleteChapter(id);
+        setChaptersMap(prev => ({
           ...prev,
-          [activeTab]: (prev[activeTab] || []).filter(c => c.name !== name),
+          [activeSubjectId]: (prev[activeSubjectId] || []).filter(c => c.id !== id),
         }));
-        setSchedule(prev => {
-          const updated = { ...prev };
-          if (updated[activeTab]) {
-            delete updated[activeTab][name];
-          }
-          return updated;
-        });
       }},
     ]);
   }
 
-  const chapters = getAllChapters(activeTab);
-  const sc = SUBJECT_COLORS[activeTab];
+  if (subjects.length === 0 && !loading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.header}>
+          <Text style={s.title}>📖 Chapter Log</Text>
+          <Text style={s.subtitle}>No subjects yet</Text>
+        </View>
+        <View style={s.emptyState}>
+          <Text style={s.emptyTitle}>No subjects found</Text>
+          <Text style={s.emptyDesc}>Complete the onboarding to add subjects and chapters.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.container}>
@@ -147,38 +141,39 @@ export default function ChapterLogScreen() {
         <Text style={s.subtitle}>Master list of all chapters</Text>
       </View>
 
-      {/* Subject Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBar}>
-        {ALL_SUBJECTS.map(subj => {
-          const c = SUBJECT_COLORS[subj];
-          const isActive = subj === activeTab;
+        {subjects.map(subj => {
+          const c = getSubjectColor(subj);
+          const isActive = subj.id === activeSubjectId;
           return (
             <TouchableOpacity
-              key={subj}
+              key={subj.id}
               style={[s.tab, isActive && { backgroundColor: c.dot }]}
-              onPress={() => setActiveTab(subj)}
+              onPress={() => setActiveSubjectId(subj.id)}
             >
-              <Text style={[s.tabText, isActive && { color: '#fff' }]}>{subj}</Text>
+              <Text style={[s.tabText, isActive && { color: '#fff' }]}>{subj.name}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Add Button */}
-      <TouchableOpacity style={[s.addBtn, { backgroundColor: sc.dot }]} onPress={() => setShowAdd(true)}>
-        <Text style={s.addBtnText}>+ Add Chapter</Text>
-      </TouchableOpacity>
+      {activeSubject && (
+        <TouchableOpacity style={[s.addBtn, { backgroundColor: sc.dot }]} onPress={() => setShowAdd(true)}>
+          <Text style={s.addBtnText}>+ Add Chapter</Text>
+        </TouchableOpacity>
+      )}
 
-      {/* Chapter List */}
       <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
-        {chapters.map((ch, i) => {
-          const dates = schedule[activeTab]?.[ch] || [];
-          const isCustom = !(CHAPTERS[activeTab] || []).includes(ch);
+        {activeChapters.map((ch, i) => {
+          const dates = schedule[activeSubject?.name]?.[ch.name] || [];
           return (
-            <View key={ch} style={[s.row, i % 2 === 1 && s.rowAlt]}>
+            <View key={ch.id} style={[s.row, i % 2 === 1 && s.rowAlt]}>
               <View style={[s.rowDot, { backgroundColor: sc.dot }]} />
+              <View style={s.rowNum}>
+                <Text style={[s.rowNumText, { color: sc.fg }]}>{i + 1}</Text>
+              </View>
               <View style={s.rowContent}>
-                <Text style={[s.rowText, { color: sc.fg }]}>{ch}</Text>
+                <Text style={[s.rowText, { color: sc.fg }]}>{ch.name}</Text>
                 {dates.length > 0 ? (
                   <Text style={s.rowDates}>✓ {dates.sort().join(', ')}</Text>
                 ) : (
@@ -187,26 +182,26 @@ export default function ChapterLogScreen() {
               </View>
               <TouchableOpacity
                 style={s.editBtn}
-                onPress={() => { setEditOldName(ch); setEditChapter(ch); setShowEdit(true); }}
+                onPress={() => { setEditChapterId(ch.id); setEditChapter(ch.name); setShowEdit(true); }}
               >
                 <Text style={s.editBtnText}>✏️</Text>
               </TouchableOpacity>
-              {isCustom && (
-                <TouchableOpacity style={s.delBtn} onPress={() => doDelete(ch)}>
-                  <Text style={s.delBtnText}>✕</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity style={s.delBtn} onPress={() => doDelete(ch.id, ch.name)}>
+                <Text style={s.delBtnText}>✕</Text>
+              </TouchableOpacity>
             </View>
           );
         })}
+        {activeChapters.length === 0 && (
+          <Text style={s.emptyText}>No chapters yet. Tap + Add Chapter.</Text>
+        )}
       </ScrollView>
 
-      {/* ── ADD MODAL ── */}
       <Modal visible={showAdd} transparent animationType="slide">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <Text style={s.modalTitle}>Add Chapter</Text>
-            <Text style={s.modalSub}>{activeTab}</Text>
+            <Text style={s.modalSub}>{activeSubject?.name}</Text>
             <TextInput
               style={s.input}
               placeholder="Chapter name"
@@ -227,7 +222,6 @@ export default function ChapterLogScreen() {
         </View>
       </Modal>
 
-      {/* ── EDIT MODAL ── */}
       <Modal visible={showEdit} transparent animationType="slide">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
@@ -268,7 +262,9 @@ const s = StyleSheet.create({
   list: { flex: 1, paddingHorizontal: 16, marginTop: 8 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' },
   rowAlt: { backgroundColor: '#fafbfc' },
-  rowDot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
+  rowDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  rowNum: { width: 24, alignItems: 'center', marginRight: 8 },
+  rowNumText: { fontSize: 13, fontWeight: '700' },
   rowContent: { flex: 1 },
   rowText: { fontSize: 14, fontWeight: '600' },
   rowDates: { fontSize: 11, color: '#16a346', marginTop: 2 },
@@ -287,4 +283,8 @@ const s = StyleSheet.create({
   cancelBtnText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
   confirmBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   confirmBtnText: { fontSize: 14, color: '#fff', fontWeight: '700' },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
+  emptyDesc: { fontSize: 14, color: '#94a3b8', textAlign: 'center', lineHeight: 20 },
+  emptyText: { fontSize: 13, color: '#cbd5e1', textAlign: 'center', marginTop: 24 },
 });

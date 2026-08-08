@@ -25,7 +25,7 @@ export default function ChatScreen() {
     if (messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        content: "Hey! I'm **OnamStudyAI** \uD83E\uDD16\n\nAsk me anything about your Onam 2026 prep — chapter summaries, formulas, study tips, or revision strategies.\n\nTap a quick prompt below or type your own question!",
+        content: "Hey! I'm **TheComebackAI** 🤖\n\nAsk me anything about your exam prep — chapter summaries, formulas, study tips, or revision strategies.\n\nTap a quick prompt below or type your own question!",
       }]);
     }
   }, []);
@@ -69,7 +69,7 @@ export default function ChatScreen() {
     <SafeAreaView style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>OnamStudyAI</Text>
+        <Text style={s.headerTitle}>TheComebackAI</Text>
         <View style={s.headerDot} />
         <Text style={s.headerStatus}>Online</Text>
         <View style={{ flex: 1 }} />

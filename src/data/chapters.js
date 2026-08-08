@@ -15,7 +15,7 @@ export const CHAPTERS = {
     'Nuclei',
     'Semiconductor Electronics',
   ],
-  CHE: [
+  Chemistry: [
     'd-Block and f-Block Elements',
     'Coordination Compounds',
     'Solutions',
@@ -80,7 +80,7 @@ export const CHAPTERS = {
 
 export const SUBJECT_COLORS = {
   PHYSICS: { bg: '#bfdbfe', fg: '#1e40af', dot: '#3b82f6' },
-  CHE: { bg: '#fecaca', fg: '#991b1b', dot: '#ef4444' },
+  Chemistry: { bg: '#fecaca', fg: '#991b1b', dot: '#ef4444' },
   MATHS: { bg: '#bbf7d0', fg: '#166534', dot: '#22c55e' },
   'COMPUTER SCIENCE': { bg: '#cffafe', fg: '#155e75', dot: '#06b6d4' },
   ENGLISH: { bg: '#e9d5ff', fg: '#6b21a8', dot: '#a855f7' },

@@ -21,7 +21,7 @@ export function generateTemplate(subjects) {
   if (data.length === 1) {
     data.push(['Physics', 'Example Chapter 1']);
     data.push(['Physics', 'Example Chapter 2']);
-    data.push(['CHE', 'Example Chapter 1']);
+    data.push(['Chemistry', 'Example Chapter 1']);
   }
 
   const ws = XLSX.utils.aoa_to_sheet(data);

@@ -1,14 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 const URL = 'https://ksqqfcqnpnyixsvwtcli.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzcXFmY3FucG55aXhzdnd0Y2xpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwOTQzNDUsImV4cCI6MjEwMTY3MDM0NX0.6UiCRpBRbCMMGFG0BKpFN2osvKvubsT8J9Lbqndee40';
 
-const USER_KEY = '@comeback_user';
-const DEFAULT_USER_ID = '31f0ee46-1267-4d45-88b5-2bd3db5d81cb';
-
 let _userId = null;
-let _email = '';
-let _listeners = [];
+
+function setUserId(id) {
+  _userId = id;
+}
 
 function getHeaders() {
   return {
@@ -16,6 +13,10 @@ function getHeaders() {
     'Content-Type': 'application/json',
     'Prefer': 'return=representation',
   };
+}
+
+function uid() {
+  return _userId;
 }
 
 async function restGet(table, query = '') {
@@ -44,53 +45,10 @@ async function restDelete(table, filter) {
   return res.json();
 }
 
-function uid() {
-  return _userId;
-}
-
-function notifyListeners() {
-  _listeners.forEach(fn => fn());
-}
-
-// ── AUTH (local only) ──
+// ── AUTH (Clerk integration) ──
 export const auth = {
-  init: async () => {
-    try {
-      const raw = await AsyncStorage.getItem(USER_KEY);
-      if (raw) {
-        const stored = JSON.parse(raw);
-        _userId = stored.userId || DEFAULT_USER_ID;
-        _email = stored.email || '';
-        notifyListeners();
-        return { userId: _userId, email: _email };
-      }
-    } catch (e) { console.log('Auth init error:', e); }
-    return null;
-  },
-
-  signIn: async (email) => {
-    _email = email;
-    _userId = DEFAULT_USER_ID;
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify({ userId: _userId, email }));
-    notifyListeners();
-    return { error: null };
-  },
-
-  signOut: async () => {
-    _userId = null;
-    _email = '';
-    await AsyncStorage.removeItem(USER_KEY);
-    notifyListeners();
-  },
-
-  onSessionChange: (fn) => {
-    _listeners.push(fn);
-    return () => { _listeners = _listeners.filter(f => f !== fn); };
-  },
-
-  isAuthenticated: () => !!_userId,
+  setUserId,
   userId: uid,
-  email: () => _email,
 };
 
 // ── PROFILE ──
@@ -99,7 +57,10 @@ export const profile = {
     const id = uid();
     if (!id) return null;
     const rows = await restGet('profiles', `select=*&id=eq.${id}`);
-    return rows?.[0] || null;
+    if (rows?.length > 0) return rows[0];
+    await restInsert('profiles', { id, onboarding_complete: false });
+    const retry = await restGet('profiles', `select=*&id=eq.${id}`);
+    return retry?.[0] || null;
   },
   update: async (data) => {
     const id = uid();
@@ -156,7 +117,6 @@ export const db = {
   deleteCustomChapter: (id) => restDelete('custom_chapters', `id=eq.${id}`),
   updateCustomChapter: (id, name) => restUpdate('custom_chapters', { chapter_name: name }, `id=eq.${id}`),
 
-  // ── SUBJECTS ──
   getSubjects: () => {
     const id = uid();
     return id ? restGet('subjects', `select=*&user_id=eq.${id}&order=position`) : Promise.resolve([]);
@@ -165,7 +125,6 @@ export const db = {
   deleteSubject: (id) => restDelete('subjects', `id=eq.${id}`),
   updateSubject: (id, data) => restUpdate('subjects', data, `id=eq.${id}`),
 
-  // ── CHAPTERS ──
   getChapters: () => {
     const id = uid();
     return id ? restGet('chapters', `select=*&user_id=eq.${id}&order=position`) : Promise.resolve([]);
@@ -183,7 +142,6 @@ export const db = {
     return res.json();
   },
 
-  // ── EXAMS ──
   getExams: () => {
     const id = uid();
     return id ? restGet('exams', `select=*&user_id=eq.${id}&order=position`) : Promise.resolve([]);

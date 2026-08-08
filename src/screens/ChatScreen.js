@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
   ActivityIndicator, Alert,
 } from 'react-native';
+import { useClerk } from '@clerk/clerk-expo';
 import { chat } from '../lib/ai';
 
 const QUICK_PROMPTS = [
@@ -16,6 +17,7 @@ const QUICK_PROMPTS = [
 ];
 
 export default function ChatScreen() {
+  const { signOut } = useClerk();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -88,6 +90,17 @@ export default function ChatScreen() {
             <Text style={s.clearBtnText}>Clear</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={[s.clearBtn, { marginLeft: 8 }]}
+          onPress={() => {
+            Alert.alert('Sign Out', 'Are you sure?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+            ]);
+          }}
+        >
+          <Text style={s.clearBtnText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}

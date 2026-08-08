@@ -20,8 +20,8 @@ const RULES = [
 
 const PRESET_SUBJECTS = [
   { name: 'Physics', color: '#3b82f6' },
-  { name: 'Chemistry', color: '#ef4444' },
-  { name: 'Mathematics', color: '#22c55e' },
+  { name: 'CHE', color: '#ef4444' },
+  { name: 'MATH', color: '#22c55e' },
   { name: 'Computer Science', color: '#06b6d4' },
   { name: 'English', color: '#a855f7' },
   { name: 'Hindi', color: '#f97316' },

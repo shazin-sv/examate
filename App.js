@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { ClerkProvider, SignedIn, SignedOut, useUser } from '@clerk/clerk-expo';
+import tokenCache from './src/lib/clerkTokenCache';
 import { auth, profile } from './src/lib/supabase';
-import InvitationCodeScreen from './src/screens/auth/InvitationCodeScreen';
+import SignInScreen from './src/screens/auth/SignInScreen';
 import OnboardingScreen from './src/screens/onboarding/OnboardingScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import ChapterLogScreen from './src/screens/ChapterLogScreen';
 import ChatScreen from './src/screens/ChatScreen';
+
+const CLERK_PUBLISHABLE_KEY = 'pk_test_c3BlY2lhbC1vcnl4LTkzLmNsZXJrLmFjY291bnRzLmRldiQ';
 
 const Tab = createBottomTabNavigator();
 
@@ -55,43 +59,28 @@ function MainTabs() {
   );
 }
 
-export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [onboarded, setOnboarded] = useState(false);
+function AuthenticatedApp() {
+  const { user, isLoaded } = useUser();
+  const [onboarded, setOnboarded] = React.useState(false);
+  const [checking, setChecking] = React.useState(true);
 
   useEffect(() => {
+    if (!isLoaded || !user) return;
+    auth.setUserId(user.id);
     let mounted = true;
-    async function init() {
-      const user = await auth.init();
-      if (!mounted) return;
-      if (user) {
-        setAuthenticated(true);
-        try {
-          const p = await profile.get();
-          if (mounted) setOnboarded(p?.onboarding_complete || false);
-        } catch (e) {
-          console.log('Profile check error:', e);
-        }
+    (async () => {
+      try {
+        const p = await profile.get();
+        if (mounted) setOnboarded(p?.onboarding_complete || false);
+      } catch (e) {
+        console.log('Profile check error:', e);
       }
-      setLoading(false);
-    }
-    init();
-    const unsub = auth.onSessionChange(() => {
-      const isAuth = auth.isAuthenticated();
-      setAuthenticated(isAuth);
-      if (isAuth) {
-        profile.get().then(p => {
-          setOnboarded(p?.onboarding_complete || false);
-        }).catch(() => {});
-      } else {
-        setOnboarded(false);
-      }
-    });
-    return () => { mounted = false; unsub(); };
-  }, []);
+      if (mounted) setChecking(false);
+    })();
+    return () => { mounted = false; };
+  }, [isLoaded, user]);
 
-  if (loading) {
+  if (!isLoaded || checking) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -100,17 +89,26 @@ export default function App() {
     );
   }
 
+  if (!onboarded) {
+    return <OnboardingScreen onComplete={() => setOnboarded(true)} />;
+  }
+
+  return <MainTabs />;
+}
+
+export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" />
-      {!authenticated ? (
-        <InvitationCodeScreen />
-      ) : !onboarded ? (
-        <OnboardingScreen onComplete={() => setOnboarded(true)} />
-      ) : (
-        <MainTabs />
-      )}
-    </NavigationContainer>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      <NavigationContainer>
+        <StatusBar style="dark" />
+        <SignedIn>
+          <AuthenticatedApp />
+        </SignedIn>
+        <SignedOut>
+          <SignInScreen />
+        </SignedOut>
+      </NavigationContainer>
+    </ClerkProvider>
   );
 }
 

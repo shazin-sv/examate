@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
-  SafeAreaView, Alert, ActivityIndicator, FlatList, Platform,
+  View, Text, TextInput, ScrollView, StyleSheet,
+  SafeAreaView, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { db, profile } from '../../lib/supabase';
 import { downloadTemplate, importFromExcel } from '../../lib/xlsx';
+import { ScalePressable, FadeScalePressable } from '../../components/AnimatedPressable';
 
 const STEP_TITLES = ['Study Rule', 'Subjects', 'Chapters', 'Exams'];
 const TOTAL_STEPS = 4;
@@ -56,37 +57,39 @@ export default function OnboardingScreen({ onComplete }) {
   const selectedSubjects = subjects.filter(s => s.selected);
   const activeSubjectObj = subjects.find(s => s.name === activeSubject);
 
-  // ── STEP 1: RULES ──
   function renderStep1() {
     return (
       <ScrollView style={s.stepScroll} showsVerticalScrollIndicator={false}>
         <Text style={s.stepDesc}>Choose how you want to space your revision sessions. You can change this later.</Text>
         {RULES.map(rule => (
-          <TouchableOpacity
+          <FadeScalePressable
             key={rule.id}
             style={[s.ruleCard, selectedRule === rule.id && s.ruleCardSelected]}
             onPress={() => setSelectedRule(rule.id)}
           >
             <View style={s.ruleHeader}>
               <Text style={[s.ruleName, selectedRule === rule.id && s.ruleNameSelected]}>{rule.name}</Text>
-              {selectedRule === rule.id && <Text style={s.ruleCheck}>✓</Text>}
+              {selectedRule === rule.id && (
+                <View style={s.ruleCheckContainer}>
+                  <Text style={s.ruleCheck}>✓</Text>
+                </View>
+              )}
             </View>
             <Text style={s.ruleDesc}>{rule.desc}</Text>
-          </TouchableOpacity>
+          </FadeScalePressable>
         ))}
       </ScrollView>
     );
   }
 
-  // ── STEP 2: SUBJECTS ──
   function renderStep2() {
     return (
       <ScrollView style={s.stepScroll} showsVerticalScrollIndicator={false}>
         <Text style={s.stepDesc}>Select the subjects you study. Toggle on/off, or add your own.</Text>
         {subjects.map((subj, idx) => (
-          <TouchableOpacity
+          <FadeScalePressable
             key={idx}
-            style={[s.subjectCard, subj.selected && { backgroundColor: subj.color + '15' }]}
+            style={[s.subjectCard, subj.selected && { backgroundColor: subj.color + '12' }]}
             onPress={() => {
               const updated = [...subjects];
               updated[idx] = { ...updated[idx], selected: !updated[idx].selected };
@@ -95,10 +98,12 @@ export default function OnboardingScreen({ onComplete }) {
           >
             <View style={[s.subjectDot, { backgroundColor: subj.color }]} />
             <Text style={s.subjectName}>{subj.name}</Text>
-            <Text style={[s.subjectToggle, subj.selected && { color: '#22c55e' }]}>
-              {subj.selected ? 'ON' : 'OFF'}
-            </Text>
-          </TouchableOpacity>
+            <View style={[s.subjectToggle, subj.selected && { backgroundColor: '#dcfce7' }]}>
+              <Text style={[s.subjectToggleText, subj.selected && { color: '#16a346' }]}>
+                {subj.selected ? 'ON' : 'OFF'}
+              </Text>
+            </View>
+          </FadeScalePressable>
         ))}
         <View style={s.addRow}>
           <TextInput
@@ -108,7 +113,7 @@ export default function OnboardingScreen({ onComplete }) {
             value={newSubjectName}
             onChangeText={setNewSubjectName}
           />
-          <TouchableOpacity
+          <ScalePressable
             style={s.addBtnSmall}
             onPress={() => {
               const name = newSubjectName.trim();
@@ -123,20 +128,19 @@ export default function OnboardingScreen({ onComplete }) {
             }}
           >
             <Text style={s.addBtnSmallText}>Add</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         </View>
       </ScrollView>
     );
   }
 
-  // ── STEP 3: CHAPTERS ──
   function renderStep3() {
     if (!activeSubject) {
       return (
         <ScrollView style={s.stepScroll} showsVerticalScrollIndicator={false}>
           <Text style={s.stepDesc}>Tap a subject to add chapters. No presets — add what your board teaches.</Text>
           <View style={s.excelRow}>
-            <TouchableOpacity style={s.excelBtn} onPress={async () => {
+            <ScalePressable style={s.excelBtn} onPress={async () => {
               try {
                 const subjects = selectedSubjects.map(s => ({
                   name: s.name,
@@ -148,8 +152,8 @@ export default function OnboardingScreen({ onComplete }) {
               }
             }}>
               <Text style={s.excelBtnText}>📥 Download Template</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.excelBtn, s.excelBtnAlt]} onPress={async () => {
+            </ScalePressable>
+            <ScalePressable style={[s.excelBtn, s.excelBtnAlt]} onPress={async () => {
               const imported = await importFromExcel();
               if (!imported) return;
               const updated = { ...chaptersBySubject };
@@ -165,12 +169,12 @@ export default function OnboardingScreen({ onComplete }) {
               Alert.alert('Imported', 'Chapters imported successfully.');
             }}>
               <Text style={s.excelBtnText}>📤 Upload Excel</Text>
-            </TouchableOpacity>
+            </ScalePressable>
           </View>
           {selectedSubjects.map(subj => {
             const chaps = chaptersBySubject[subj.name] || [];
             return (
-              <TouchableOpacity
+              <FadeScalePressable
                 key={subj.name}
                 style={[s.subjectCard, { backgroundColor: subj.color + '10' }]}
                 onPress={() => setActiveSubject(subj.name)}
@@ -179,7 +183,7 @@ export default function OnboardingScreen({ onComplete }) {
                 <Text style={s.subjectName}>{subj.name}</Text>
                 <Text style={s.chapterCount}>{chaps.length} chapters</Text>
                 <Text style={s.arrow}>›</Text>
-              </TouchableOpacity>
+              </FadeScalePressable>
             );
           })}
         </ScrollView>
@@ -189,9 +193,9 @@ export default function OnboardingScreen({ onComplete }) {
     const chaps = chaptersBySubject[activeSubject] || [];
     return (
       <View style={s.chapterEditor}>
-        <TouchableOpacity onPress={() => setActiveSubject(null)} style={s.backBtn}>
+        <ScalePressable onPress={() => setActiveSubject(null)} style={s.backBtn}>
           <Text style={s.backBtnText}>← Back</Text>
-        </TouchableOpacity>
+        </ScalePressable>
         <Text style={s.chapterSubject}>{activeSubjectObj?.name}</Text>
 
         <View style={s.addRow}>
@@ -216,7 +220,7 @@ export default function OnboardingScreen({ onComplete }) {
             }}
             returnKeyType="done"
           />
-          <TouchableOpacity
+          <ScalePressable
             style={[s.addBtnSmall, { backgroundColor: activeSubjectObj?.color || '#3b82f6' }]}
             onPress={() => {
               const name = newChapter.trim();
@@ -233,38 +237,39 @@ export default function OnboardingScreen({ onComplete }) {
             }}
           >
             <Text style={s.addBtnSmallText}>Add</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         </View>
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {chaps.map((ch, i) => (
-            <View key={i} style={[s.chapterRow, i % 2 === 0 && { backgroundColor: '#fafbfc' }]}>
+            <FadeScalePressable key={i} style={[s.chapterRow, i % 2 === 0 && { backgroundColor: '#fafbfc' }]}>
               <Text style={s.chapterNum}>{i + 1}.</Text>
               <Text style={s.chapterName}>{ch}</Text>
-              <TouchableOpacity onPress={() => {
+              <ScalePressable onPress={() => {
                 const updated = chaps.filter((_, j) => j !== i);
                 setChaptersBySubject({ ...chaptersBySubject, [activeSubject]: updated });
               }}>
                 <Text style={s.chapterDelete}>✕</Text>
-              </TouchableOpacity>
-            </View>
+              </ScalePressable>
+            </FadeScalePressable>
           ))}
           {chaps.length === 0 && (
-            <Text style={s.emptyText}>No chapters yet. Add them above.</Text>
+            <View style={s.emptyBox}>
+              <Text style={s.emptyText}>No chapters yet. Add them above.</Text>
+            </View>
           )}
         </ScrollView>
       </View>
     );
   }
 
-  // ── STEP 4: EXAMS ──
   function renderStep4() {
     return (
       <ScrollView style={s.stepScroll} showsVerticalScrollIndicator={false}>
         <Text style={s.stepDesc}>Add your upcoming exams. Toggle to include/exclude. First exam needs a date.</Text>
         {exams.map((exam, idx) => (
-          <View key={idx} style={s.examCard}>
-            <TouchableOpacity
+          <FadeScalePressable key={idx} style={s.examCard}>
+            <ScalePressable
               style={s.examToggle}
               onPress={() => {
                 const updated = [...exams];
@@ -275,7 +280,7 @@ export default function OnboardingScreen({ onComplete }) {
               <Text style={[s.examCheck, exam.selected && { color: '#22c55e' }]}>
                 {exam.selected ? '✓' : '○'}
               </Text>
-            </TouchableOpacity>
+            </ScalePressable>
             <View style={s.examInfo}>
               <Text style={s.examName}>{exam.name}</Text>
               {exam.selected && (
@@ -287,7 +292,7 @@ export default function OnboardingScreen({ onComplete }) {
                   ) : (
                     <Text style={s.examDateNeeded}>Date required</Text>
                   )}
-                  <TouchableOpacity
+                  <ScalePressable
                     style={s.examDateBtn}
                     onPress={() => {
                       Alert.alert('Set Date', 'Choose an option:', [
@@ -304,11 +309,11 @@ export default function OnboardingScreen({ onComplete }) {
                     }}
                   >
                     <Text style={s.examDateBtnText}>{exam.date || exam.tbd ? 'Edit' : 'Set'}</Text>
-                  </TouchableOpacity>
+                  </ScalePressable>
                 </View>
               )}
             </View>
-          </View>
+          </FadeScalePressable>
         ))}
         <View style={s.addRow}>
           <TextInput
@@ -318,7 +323,7 @@ export default function OnboardingScreen({ onComplete }) {
             value={newExamName}
             onChangeText={setNewExamName}
           />
-          <TouchableOpacity
+          <ScalePressable
             style={s.addBtnSmall}
             onPress={() => {
               const name = newExamName.trim();
@@ -328,13 +333,12 @@ export default function OnboardingScreen({ onComplete }) {
             }}
           >
             <Text style={s.addBtnSmallText}>Add</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         </View>
       </ScrollView>
     );
   }
 
-  // ── VALIDATION ──
   function canProceed() {
     if (step === 1) return true;
     if (step === 2) return selectedSubjects.length > 0;
@@ -445,25 +449,25 @@ export default function OnboardingScreen({ onComplete }) {
 
       <View style={s.footer}>
         {step > 1 && (
-          <TouchableOpacity
+          <ScalePressable
             style={s.backFooterBtn}
             onPress={() => { setStep(step - 1); setActiveSubject(null); }}
             disabled={saving}
           >
             <Text style={s.backFooterBtnText}>Back</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         )}
         <View style={{ flex: 1 }} />
         {step < TOTAL_STEPS ? (
-          <TouchableOpacity
+          <ScalePressable
             style={[s.nextBtn, !canProceed() && s.nextBtnDisabled]}
             onPress={() => setStep(step + 1)}
             disabled={!canProceed()}
           >
             <Text style={s.nextBtnText}>Continue</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         ) : (
-          <TouchableOpacity
+          <ScalePressable
             style={[s.nextBtn, (!canProceed() || saving) && s.nextBtnDisabled]}
             onPress={handleFinish}
             disabled={!canProceed() || saving}
@@ -473,7 +477,7 @@ export default function OnboardingScreen({ onComplete }) {
             ) : (
               <Text style={s.nextBtnText}>Start Learning</Text>
             )}
-          </TouchableOpacity>
+          </ScalePressable>
         )}
       </View>
     </SafeAreaView>
@@ -481,9 +485,9 @@ export default function OnboardingScreen({ onComplete }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+  container: { flex: 1, backgroundColor: '#fafbfc' },
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 12 },
-  title: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  title: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
   stepIndicator: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
   progressBg: { height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, marginTop: 12 },
   progressFill: { height: 4, backgroundColor: '#3b82f6', borderRadius: 2 },
@@ -491,48 +495,112 @@ const s = StyleSheet.create({
   stepScroll: { flex: 1, paddingHorizontal: 24 },
   stepDesc: { fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 20 },
   footer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32, paddingTop: 12 },
-  backFooterBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: '#f1f5f9' },
+  backFooterBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: '#fff' },
   backFooterBtnText: { fontSize: 14, fontWeight: '700', color: '#475569' },
-  nextBtn: { backgroundColor: '#3b82f6', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 12 },
-  nextBtnDisabled: { opacity: 0.5 },
+  nextBtn: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  nextBtnDisabled: { opacity: 0.5, shadowOpacity: 0, elevation: 0 },
   nextBtnText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
 
-  ruleCard: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 16, marginBottom: 10 },
+  ruleCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+  },
   ruleCardSelected: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
   ruleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   ruleName: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
   ruleNameSelected: { color: '#3b82f6' },
-  ruleCheck: { fontSize: 18, fontWeight: '700', color: '#3b82f6' },
+  ruleCheckContainer: {
+    backgroundColor: '#3b82f6',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ruleCheck: { fontSize: 14, fontWeight: '700', color: '#fff' },
   ruleDesc: { fontSize: 13, color: '#64748b', marginTop: 6, lineHeight: 18 },
 
-  subjectCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 8 },
+  subjectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
   subjectDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   subjectName: { fontSize: 15, fontWeight: '700', color: '#0f172a', flex: 1 },
-  subjectToggle: { fontSize: 12, fontWeight: '800', color: '#cbd5e1', letterSpacing: 1 },
+  subjectToggle: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  subjectToggleText: { fontSize: 11, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
   chapterCount: { fontSize: 12, color: '#94a3b8', marginRight: 8 },
   arrow: { fontSize: 18, color: '#94a3b8' },
 
   excelRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  excelBtn: { flex: 1, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  excelBtn: {
+    flex: 1,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   excelBtnAlt: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
   excelBtnText: { fontSize: 12, fontWeight: '700', color: '#166534' },
 
   addRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  addInput: { flex: 1, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#0f172a' },
+  addInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+  },
   addBtnSmall: { backgroundColor: '#3b82f6', paddingHorizontal: 18, borderRadius: 10, justifyContent: 'center' },
   addBtnSmallText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   chapterEditor: { flex: 1, paddingHorizontal: 24 },
   backBtn: { marginTop: 8, marginBottom: 4 },
   backBtnText: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
-  chapterSubject: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
-  chapterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' },
+  chapterSubject: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
+  chapterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#f1f5f9',
+  },
   chapterNum: { fontSize: 14, fontWeight: '700', color: '#94a3b8', width: 30 },
   chapterName: { fontSize: 14, fontWeight: '600', color: '#334155', flex: 1 },
   chapterDelete: { fontSize: 14, color: '#ef4444', fontWeight: '700', paddingHorizontal: 8 },
-  emptyText: { fontSize: 13, color: '#cbd5e1', textAlign: 'center', marginTop: 24 },
+  emptyBox: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 24, alignItems: 'center', marginTop: 8 },
+  emptyText: { fontSize: 13, color: '#94a3b8' },
 
-  examCard: { flexDirection: 'row', backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 8 },
+  examCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8 },
   examToggle: { marginRight: 12, justifyContent: 'center' },
   examCheck: { fontSize: 20, color: '#cbd5e1' },
   examInfo: { flex: 1 },
@@ -541,6 +609,6 @@ const s = StyleSheet.create({
   examDateSet: { fontSize: 12, color: '#22c55e', fontWeight: '600' },
   examDateTbd: { fontSize: 12, color: '#f59e0b', fontWeight: '600' },
   examDateNeeded: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
-  examDateBtn: { backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6 },
+  examDateBtn: { backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   examDateBtnText: { fontSize: 11, fontWeight: '700', color: '#3b82f6' },
 });

@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Alert,
+  View, Text, TextInput, ScrollView, StyleSheet, SafeAreaView,
+  KeyboardAvoidingView, Platform, Alert, Animated,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useClerk } from '@clerk/clerk-expo';
 import { chat } from '../lib/ai';
+import { ScalePressable, FadeScalePressable } from '../components/AnimatedPressable';
+import { useTheme } from '../context/ThemeContext';
 
 const QUICK_PROMPTS = [
   'Explain Chemical Kinetics in 5 points',
@@ -16,94 +18,235 @@ const QUICK_PROMPTS = [
   'Tips for English writing section',
 ];
 
+function formatTime(date) {
+  const d = date instanceof Date ? date : new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const parts = [];
+  const lines = text.split('\n');
+  
+  lines.forEach((line, lineIdx) => {
+    if (line.startsWith('### ')) {
+      parts.push(<Text key={`h3-${lineIdx}`} style={s.mdH3}>{line.slice(4)}</Text>);
+    } else if (line.startsWith('## ')) {
+      parts.push(<Text key={`h2-${lineIdx}`} style={s.mdH2}>{line.slice(3)}</Text>);
+    } else if (line.startsWith('# ')) {
+      parts.push(<Text key={`h1-${lineIdx}`} style={s.mdH1}>{line.slice(2)}</Text>);
+    } else if (line.startsWith('- ') || line.startsWith('• ')) {
+      parts.push(<Text key={`li-${lineIdx}`} style={s.mdListItem}>  {line.slice(2)}</Text>);
+    } else if (/^\d+\.\s/.test(line)) {
+      parts.push(<Text key={`ol-${lineIdx}`} style={s.mdListItem}>  {line}</Text>);
+    } else {
+      const rendered = renderInlineMarkdown(line, lineIdx);
+      parts.push(rendered);
+      if (lineIdx < lines.length - 1 && line !== '') {
+        parts.push(<Text key={`br-${lineIdx}`}>{'\n'}</Text>);
+      }
+    }
+  });
+  return parts;
+}
+
+function renderInlineMarkdown(text, baseKey) {
+  const segments = [];
+  let remaining = text;
+  let segIdx = 0;
+  const boldRegex = /\*\*(.+?)\*\*/g;
+  const italicRegex = /\*(.+?)\*/g;
+  let match;
+
+  let tempText = remaining;
+  const tokens = [];
+  while ((match = boldRegex.exec(tempText)) !== null) {
+    tokens.push({ type: 'bold', text: match[1], index: match.index, length: match[0].length });
+  }
+  while ((match = italicRegex.exec(tempText)) !== null) {
+    if (!tokens.find(t => t.index <= match.index && t.index + t.length > match.index)) {
+      tokens.push({ type: 'italic', text: match[1], index: match.index, length: match[0].length });
+    }
+  }
+  tokens.sort((a, b) => a.index - b.index);
+
+  let cursor = 0;
+  tokens.forEach((tok, ti) => {
+    if (tok.index > cursor) {
+      segments.push(<Text key={`${baseKey}-t${segIdx++}`}>{tempText.slice(cursor, tok.index)}</Text>);
+    }
+    if (tok.type === 'bold') {
+      segments.push(<Text key={`${baseKey}-b${segIdx++}`} style={s.mdBold}>{tok.text}</Text>);
+    } else {
+      segments.push(<Text key={`${baseKey}-i${segIdx++}`} style={s.mdItalic}>{tok.text}</Text>);
+    }
+    cursor = tok.index + tok.length;
+  });
+  if (cursor < tempText.length) {
+    segments.push(<Text key={`${baseKey}-e${segIdx++}`}>{tempText.slice(cursor)}</Text>);
+  }
+
+  return segments.length > 0 ? <Text key={baseKey} style={s.mdText}>{segments}</Text> : <Text key={baseKey} style={s.mdText}>{text}</Text>;
+}
+
+function TypingDots({ color }) {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(dot1, { toValue: 1, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot2, { toValue: 0.6, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot3, { toValue: 0.3, duration: 400, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(dot1, { toValue: 0.3, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot2, { toValue: 1, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot3, { toValue: 0.6, duration: 400, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(dot1, { toValue: 0.6, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot2, { toValue: 0.3, duration: 400, useNativeDriver: false }),
+          Animated.timing(dot3, { toValue: 1, duration: 400, useNativeDriver: false }),
+        ]),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <View style={s.typingRow}>
+      <Animated.View style={[s.typingDot, { opacity: dot1, backgroundColor: color || '#94a3b8' }]} />
+      <Animated.View style={[s.typingDot, { opacity: dot2, backgroundColor: color || '#94a3b8' }]} />
+      <Animated.View style={[s.typingDot, { opacity: dot3, backgroundColor: color || '#94a3b8' }]} />
+    </View>
+  );
+}
+
 export default function ChatScreen() {
+  const { theme } = useTheme();
   const { signOut } = useClerk();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef();
+  const [timestamps, setTimestamps] = useState({});
 
   useEffect(() => {
     if (messages.length === 0) {
-      setMessages([{
+      const welcomeMsg = {
         role: 'assistant',
         content: "Hey! I'm **TheComebackAI** 🤖\n\nAsk me anything about your exam prep — chapter summaries, formulas, study tips, or revision strategies.\n\nTap a quick prompt below or type your own question!",
-      }]);
+      };
+      setMessages([welcomeMsg]);
+      setTimestamps({ 0: formatTime() });
     }
   }, []);
 
-  function scrollToBottom() {
+  const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }
+  }, []);
 
   async function sendMessage(text) {
     const msg = text || input.trim();
     if (!msg || loading) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const userMsg = { role: 'user', content: msg };
     const newMessages = [...messages, userMsg];
+    const newIdx = newMessages.length - 1;
     setMessages(newMessages);
+    setTimestamps(prev => ({ ...prev, [newIdx]: formatTime() }));
     setInput('');
     setLoading(true);
     scrollToBottom();
 
     const reply = await chat(newMessages);
-    setMessages([...newMessages, { role: 'assistant', content: reply }]);
+    const finalMessages = [...newMessages, { role: 'assistant', content: reply }];
+    setMessages(finalMessages);
+    setTimestamps(prev => ({ ...prev, [finalMessages.length - 1]: formatTime() }));
     setLoading(false);
     scrollToBottom();
   }
 
   function renderMessage(msg, i) {
     const isUser = msg.role === 'user';
+    const ts = timestamps[i];
     return (
-      <View key={i} style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAI]}>
-        {!isUser && <Text style={s.aiLabel}>AI</Text>}
-        <Text style={[s.bubbleText, isUser && s.bubbleTextUser]}>
-          {msg.content}
-        </Text>
-      </View>
+      <FadeScalePressable key={i} style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAI, isUser && { backgroundColor: theme.primary }]}>
+        {!isUser && (
+          <View style={[s.aiLabelContainer, { backgroundColor: theme.input }]}>
+            <Text style={[s.aiLabel, { color: theme.textSecondary }]}>AI</Text>
+          </View>
+        )}
+        {isUser ? (
+          <Text style={[s.bubbleText, { color: '#ffffff' }]}>{msg.content}</Text>
+        ) : (
+          <View>{renderMarkdown(msg.content)}</View>
+        )}
+        {ts && (
+          <Text style={[s.timestamp, isUser ? s.timestampUser : { color: theme.textMuted }]}>
+            {ts}
+          </Text>
+        )}
+      </FadeScalePressable>
     );
   }
 
   return (
-    <SafeAreaView style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <Text style={s.headerTitle}>TheComebackAI</Text>
-        <View style={s.headerDot} />
-        <Text style={s.headerStatus}>Online</Text>
-        <View style={{ flex: 1 }} />
-        {messages.length > 1 && (
-          <TouchableOpacity
-            style={s.clearBtn}
+    <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
+      <View style={[s.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={s.headerLeft}>
+          <View style={[s.avatar, { backgroundColor: theme.input }]}>
+            <Text style={s.avatarText}>🤖</Text>
+          </View>
+          <View>
+            <Text style={[s.headerTitle, { color: theme.text }]}>TheComebackAI</Text>
+            <View style={s.statusRow}>
+              <View style={[s.headerDot, { backgroundColor: '#22c55e' }]} />
+              <Text style={s.headerStatus}>Online</Text>
+            </View>
+          </View>
+        </View>
+        <View style={s.headerRight}>
+          {messages.length > 1 && (
+            <ScalePressable
+              style={[s.clearBtn, { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Alert.alert('Clear Chat', 'Delete all messages?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Clear', style: 'destructive', onPress: () => {
+                    setMessages([messages[0]]);
+                    setTimestamps({ 0: timestamps[0] || formatTime() });
+                  }},
+                ]);
+              }}
+            >
+              <Text style={[s.clearBtnText, { color: theme.danger }]}>Clear</Text>
+            </ScalePressable>
+          )}
+          <ScalePressable
+            style={[s.signOutBtn, { backgroundColor: theme.input }]}
             onPress={() => {
-              Alert.alert('Clear Chat', 'Delete all messages?', [
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert('Sign Out', 'Are you sure?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Clear', style: 'destructive', onPress: () => {
-                  setMessages([messages[0]]);
-                }},
+                { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
               ]);
             }}
           >
-            <Text style={s.clearBtnText}>Clear</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[s.clearBtn, { marginLeft: 8 }]}
-          onPress={() => {
-            Alert.alert('Sign Out', 'Are you sure?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
-            ]);
-          }}
-        >
-          <Text style={s.clearBtnText}>Sign Out</Text>
-        </TouchableOpacity>
+            <Text style={[s.signOutBtnText, { color: theme.textSecondary }]}>Sign Out</Text>
+          </ScalePressable>
+        </View>
       </View>
 
-      {/* Messages */}
       <KeyboardAvoidingView
         style={s.chatArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -117,30 +260,30 @@ export default function ChatScreen() {
         >
           {messages.map((m, i) => renderMessage(m, i))}
           {loading && (
-            <View style={[s.bubble, s.bubbleAI]}>
-              <Text style={s.aiLabel}>AI</Text>
-              <ActivityIndicator size="small" color="#3b82f6" style={{ marginTop: 4 }} />
+            <View style={[s.bubble, s.bubbleAI, { backgroundColor: theme.card }, s.typingBubble]}>
+              <View style={[s.aiLabelContainer, { backgroundColor: theme.input }]}>
+                <Text style={[s.aiLabel, { color: theme.textSecondary }]}>AI</Text>
+              </View>
+              <TypingDots color={theme.textMuted} />
             </View>
           )}
         </ScrollView>
 
-        {/* Quick Prompts */}
         {messages.length <= 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.quickBar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.quickBar} contentContainerStyle={s.quickBarContent}>
             {QUICK_PROMPTS.map((p, i) => (
-              <TouchableOpacity key={i} style={s.quickBtn} onPress={() => sendMessage(p)}>
-                <Text style={s.quickBtnText}>{p}</Text>
-              </TouchableOpacity>
+              <ScalePressable key={i} style={[s.quickBtn, { backgroundColor: theme.input, borderColor: theme.border }]} onPress={() => sendMessage(p)}>
+                <Text style={[s.quickBtnText, { color: theme.primary }]}>{p}</Text>
+              </ScalePressable>
             ))}
           </ScrollView>
         )}
 
-        {/* Input */}
-        <View style={s.inputRow}>
+        <View style={[s.inputRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <TextInput
-            style={s.input}
+            style={[s.input, { backgroundColor: theme.input, borderColor: theme.border, color: theme.text }]}
             placeholder="Ask about any chapter..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => sendMessage()}
@@ -148,13 +291,13 @@ export default function ChatScreen() {
             editable={!loading}
             multiline
           />
-          <TouchableOpacity
-            style={[s.sendBtn, (!input.trim() || loading) && s.sendBtnDisabled]}
+          <ScalePressable
+            style={[s.sendBtn, { backgroundColor: theme.primary }, (!input.trim() || loading) && { backgroundColor: theme.textMuted, shadowOpacity: 0 }]}
             onPress={() => sendMessage()}
             disabled={!input.trim() || loading}
           >
             <Text style={s.sendBtnText}>↑</Text>
-          </TouchableOpacity>
+          </ScalePressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -162,28 +305,163 @@ export default function ChatScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  headerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e', marginLeft: 8 },
-  headerStatus: { fontSize: 12, color: '#22c55e', marginLeft: 4, fontWeight: '600' },
-  clearBtn: { backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  container: { flex: 1, backgroundColor: '#fafbfc' },
+  
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#fff',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { fontSize: 20 },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  headerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+  headerStatus: { fontSize: 11, color: '#22c55e', fontWeight: '600' },
+  headerRight: { flexDirection: 'row', gap: 8 },
+  
+  clearBtn: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   clearBtnText: { fontSize: 12, fontWeight: '700', color: '#dc2626' },
+  signOutBtn: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  signOutBtnText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  
   chatArea: { flex: 1 },
   messages: { flex: 1 },
   messagesInner: { padding: 16, paddingBottom: 8 },
-  bubble: { maxWidth: '82%', marginBottom: 12, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: '#3b82f6', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  bubbleAI: { backgroundColor: '#f1f5f9', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
-  aiLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', marginBottom: 2 },
+  
+  bubble: {
+    maxWidth: '82%',
+    marginBottom: 12,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  bubbleUser: {
+    backgroundColor: '#3b82f6',
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 4,
+  },
+  bubbleAI: {
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  aiLabelContainer: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  aiLabel: { fontSize: 9, fontWeight: '700', color: '#64748b' },
   bubbleText: { fontSize: 14, lineHeight: 20, color: '#1e293b' },
   bubbleTextUser: { color: '#ffffff' },
-  quickBar: { paddingHorizontal: 16, maxHeight: 50, marginBottom: 8 },
-  quickBtn: { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8 },
+  
+  timestamp: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  timestampUser: { color: 'rgba(255,255,255,0.6)' },
+  
+  mdText: { fontSize: 14, lineHeight: 21, color: '#1e293b' },
+  mdBold: { fontWeight: '700' },
+  mdItalic: { fontStyle: 'italic' },
+  mdH1: { fontSize: 18, fontWeight: '800', color: '#0f172a', marginTop: 4, marginBottom: 2 },
+  mdH2: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginTop: 4, marginBottom: 2 },
+  mdH3: { fontSize: 14, fontWeight: '700', color: '#334155', marginTop: 4, marginBottom: 2 },
+  mdListItem: { fontSize: 14, lineHeight: 20, color: '#1e293b' },
+  
+  typingBubble: { paddingVertical: 14 },
+  typingRow: { flexDirection: 'row', gap: 4, marginLeft: 4 },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94a3b8',
+  },
+  
+  quickBar: { paddingHorizontal: 16, maxHeight: 52 },
+  quickBarContent: { gap: 8, paddingVertical: 4 },
+  quickBtn: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
   quickBtnText: { fontSize: 12, color: '#1e40af', fontWeight: '600' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingBottom: 28, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', gap: 8 },
-  input: { flex: 1, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: '#0f172a', maxHeight: 100 },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
-  sendBtnDisabled: { backgroundColor: '#cbd5e1' },
+  
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 28,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    backgroundColor: '#fff',
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+    maxHeight: 100,
+  },
+  sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sendBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0, elevation: 0 },
   sendBtnText: { fontSize: 20, color: '#ffffff', fontWeight: '700', marginTop: -2 },
 });

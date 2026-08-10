@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, StyleSheet,
   SafeAreaView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { auth } from '../../lib/supabase';
+import { ScalePressable } from '../../components/AnimatedPressable';
 
 const VALID_CODE = 'FUCKAI';
 
@@ -32,7 +33,9 @@ export default function InvitationCodeScreen() {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView style={s.inner} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
-          <Text style={s.logo}>The Comeback</Text>
+          <View style={s.logoContainer}>
+            <Text style={s.logo}>The Comeback</Text>
+          </View>
           <Text style={s.subtitle}>
             {step === 'code' ? 'Enter your invitation code to continue.' : 'Now enter your email.'}
           </Text>
@@ -40,7 +43,7 @@ export default function InvitationCodeScreen() {
 
         {step === 'code' ? (
           <View style={s.form}>
-            <Text style={s.label}>Invitation Code</Text>
+            <Text style={s.label}>INVITATION CODE</Text>
             <TextInput
               style={s.input}
               placeholder="Enter code"
@@ -51,13 +54,13 @@ export default function InvitationCodeScreen() {
               autoCorrect={false}
             />
 
-            <TouchableOpacity style={s.btn} onPress={handleCodeSubmit}>
+            <ScalePressable style={s.btn} onPress={handleCodeSubmit}>
               <Text style={s.btnText}>Continue</Text>
-            </TouchableOpacity>
+            </ScalePressable>
           </View>
         ) : (
           <View style={s.form}>
-            <Text style={s.label}>Email</Text>
+            <Text style={s.label}>EMAIL</Text>
             <TextInput
               style={s.input}
               placeholder="you@example.com"
@@ -69,13 +72,13 @@ export default function InvitationCodeScreen() {
               autoComplete="email"
             />
 
-            <TouchableOpacity style={s.btn} onPress={handleEmailSubmit}>
+            <ScalePressable style={s.btn} onPress={handleEmailSubmit}>
               <Text style={s.btnText}>Enter The Comeback</Text>
-            </TouchableOpacity>
+            </ScalePressable>
 
-            <TouchableOpacity onPress={() => { setStep('code'); setCode(''); }} style={s.linkBtn}>
+            <ScalePressable onPress={() => { setStep('code'); setCode(''); }} style={s.linkBtn}>
               <Text style={s.linkText}>← Back to code</Text>
-            </TouchableOpacity>
+            </ScalePressable>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -84,15 +87,52 @@ export default function InvitationCodeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+  container: { flex: 1, backgroundColor: '#fafbfc' },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
-  header: { marginBottom: 40 },
-  logo: { fontSize: 32, fontWeight: '900', color: '#0f172a', letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: '#94a3b8', marginTop: 8 },
+  header: { marginBottom: 36 },
+  logoContainer: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  logo: { fontSize: 28, fontWeight: '900', color: '#ffffff', letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: '#64748b', marginTop: 16, lineHeight: 22 },
   form: {},
-  label: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 6, marginTop: 16 },
-  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#0f172a' },
-  btn: { backgroundColor: '#3b82f6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 24 },
+  label: { fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#0f172a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  btn: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 28,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   btnText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
   linkBtn: { alignItems: 'center', marginTop: 20 },
   linkText: { fontSize: 14, color: '#64748b' },

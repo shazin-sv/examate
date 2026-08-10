@@ -149,4 +149,16 @@ export const db = {
   addExam: (row) => restInsert('exams', { ...row, user_id: uid() }),
   deleteExam: (id) => restDelete('exams', `id=eq.${id}`),
   updateExam: (id, data) => restUpdate('exams', data, `id=eq.${id}`),
+
+  getProfile: async () => {
+    const id = uid();
+    if (!id) return null;
+    const rows = await restGet('profiles', `select=*&id=eq.${id}`);
+    return rows?.[0] || null;
+  },
+  updateProfile: async (data) => {
+    const id = uid();
+    if (!id) return;
+    return restUpdate('profiles', data, `id=eq.${id}`);
+  },
 };

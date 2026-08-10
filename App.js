@@ -11,6 +11,9 @@ import OnboardingScreen from './src/screens/onboarding/OnboardingScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import ChapterLogScreen from './src/screens/ChapterLogScreen';
 import ChatScreen from './src/screens/ChatScreen';
+import AccountScreen from './src/screens/AccountScreen';
+import CustomTabBar from './src/components/CustomTabBar';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 const CLERK_PUBLISHABLE_KEY = 'pk_test_c3BlY2lhbC1vcnl4LTkzLmNsZXJrLmFjY291bnRzLmRldiQ';
 
@@ -19,42 +22,13 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e2e8f0',
-          borderTopWidth: 1,
-          height: 85,
-          paddingTop: 8,
-          paddingBottom: 28,
-        },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#94a3b8',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-      }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        options={{
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>📅</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="Chapters"
-        component={ChapterLogScreen}
-        options={{
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>📖</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="AI Chat"
-        component={ChatScreen}
-        options={{
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>🤖</Text>,
-        }}
-      />
+      <Tab.Screen name="Calendar" component={CalendarScreen} />
+      <Tab.Screen name="Chapters" component={ChapterLogScreen} />
+      <Tab.Screen name="AI Chat" component={ChatScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
 }
@@ -99,20 +73,27 @@ function AuthenticatedApp() {
 export default function App() {
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <SignedIn>
-          <AuthenticatedApp />
-        </SignedIn>
-        <SignedOut>
-          <SignInScreen />
-        </SignedOut>
-      </NavigationContainer>
+      <ThemeProvider>
+        <NavigationContainer>
+          <ThemedStatusBar />
+          <SignedIn>
+            <AuthenticatedApp />
+          </SignedIn>
+          <SignedOut>
+            <SignInScreen />
+          </SignedOut>
+        </NavigationContainer>
+      </ThemeProvider>
     </ClerkProvider>
   );
 }
 
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
 const styles = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
-  loadingText: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginTop: 16 },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafbfc' },
+  loadingText: { fontSize: 20, fontWeight: '800', marginTop: 16, color: '#0f172a' },
 });

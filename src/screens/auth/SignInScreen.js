@@ -1,64 +1,61 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useSignIn, useSignUp } from '@clerk/clerk-expo';
-import { ScalePressable } from '../../components/AnimatedPressable';
+import { View, Text, TextInput, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { auth } from '../../lib/supabase';
 
-export default function SignInScreen() {
-  const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
+export default function SignInScreen({ onAuthChange }) {
+  const [mode, setMode] = React.useState('signin');
+  const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [pendingVerification, setPendingVerification] = React.useState(false);
-  const [code, setCode] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
   async function handleSignIn() {
-    if (!signInLoaded || !email.trim() || !password) {
+    if (!email.trim() || !password) {
       Alert.alert('Missing fields', 'Enter email and password.');
       return;
     }
     setLoading(true);
-    try {
-      const result = await signIn.create({ identifier: email.trim().toLowerCase(), password });
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
-      }
-    } catch (e) {
-      if (e.errors?.[0]?.code === 'form_identifier_not_found') {
-        await handleSignUp();
-      } else {
-        Alert.alert('Sign in failed', e.errors?.[0]?.message || e.message);
-      }
-    }
+    const { data, error } = await auth.signIn(email.trim().toLowerCase(), password);
     setLoading(false);
+    if (error) {
+      Alert.alert('Sign in failed', error);
+      return;
+    }
+    if (onAuthChange) onAuthChange();
   }
 
   async function handleSignUp() {
-    if (!signUpLoaded) return;
-    try {
-      const result = await signUp.create({
-        emailAddress: email.trim().toLowerCase(),
-        password,
-      });
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      setPendingVerification(true);
-    } catch (e) {
-      Alert.alert('Sign up failed', e.errors?.[0]?.message || e.message);
+    if (!name.trim()) {
+      Alert.alert('Missing name', 'Enter your name.');
+      return;
     }
+    if (password.length < 8) {
+      Alert.alert('Weak password', 'Password must be at least 8 characters.');
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await auth.signUp(email.trim().toLowerCase(), password, name.trim());
+    console.log('SIGNUP RESULT:', JSON.stringify({ error, hasData: !!data, hasSession: !!data?.session, identities: data?.user?.identities?.length }));
+    setLoading(false);
+    if (error) {
+      Alert.alert('Sign up failed', error);
+      return;
+    }
+    if (data?.session) {
+      if (onAuthChange) onAuthChange();
+      return;
+    }
+    setPendingVerification(true);
   }
 
-  async function handleVerify() {
-    if (!signUpLoaded || !code) return;
-    setLoading(true);
-    try {
-      const result = await signUp.attemptEmailAddressVerification({ code });
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
-      }
-    } catch (e) {
-      Alert.alert('Verification failed', e.errors?.[0]?.message || e.message);
+  async function handleResendCode() {
+    const { error } = await auth.signIn(email.trim().toLowerCase(), password);
+    if (error && !error.includes('Email not confirmed')) {
+      Alert.alert('Resend failed', error);
+    } else {
+      Alert.alert('Code sent', 'Check your email for a new verification code.');
     }
-    setLoading(false);
   }
 
   if (pendingVerification) {
@@ -66,24 +63,27 @@ export default function SignInScreen() {
       <SafeAreaView style={s.container}>
         <KeyboardAvoidingView style={s.inner} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.header}>
-            <View style={s.logoContainer}>
-              <Text style={s.logo}>The Comeback</Text>
-            </View>
-            <Text style={s.subtitle}>Check your email for a verification code.</Text>
+            <Text style={s.logo}>The Comeback</Text>
+            <Text style={s.subtitle}>Check your email and tap the confirmation link, or enter the code below.</Text>
           </View>
-          <Text style={s.label}>Verification Code</Text>
-          <TextInput
-            style={s.input}
-            placeholder="Enter 6-digit code"
-            placeholderTextColor="#94a3b8"
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            maxLength={6}
-          />
-          <ScalePressable style={s.btn} onPress={handleVerify} disabled={loading}>
-            <Text style={s.btnText}>{loading ? 'Verifying...' : 'Verify'}</Text>
-          </ScalePressable>
+          <Pressable style={({ pressed }) => [s.btn, pressed && s.btnPressed]} onPress={async () => {
+            setLoading(true);
+            const { data, error } = await auth.signIn(email.trim().toLowerCase(), password);
+            setLoading(false);
+            if (error) {
+              Alert.alert('Not confirmed yet', 'Please check your email and tap the confirmation link first, then try again.');
+              return;
+            }
+            if (onAuthChange) onAuthChange();
+          }}>
+            <Text style={s.btnText}>{loading ? 'Signing in...' : "I've confirmed my email"}</Text>
+          </Pressable>
+          <Pressable onPress={handleResendCode} style={({ pressed }) => [s.linkBtn, pressed && { opacity: 0.6 }]}>
+            <Text style={s.linkText}>Didn't get it? <Text style={s.linkBold}>Resend</Text></Text>
+          </Pressable>
+          <Pressable onPress={() => setPendingVerification(false)} style={({ pressed }) => [s.linkBtn, pressed && { opacity: 0.6 }]}>
+            <Text style={s.linkText}>Use a different email</Text>
+          </Pressable>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -93,13 +93,25 @@ export default function SignInScreen() {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView style={s.inner} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
-          <View style={s.logoContainer}>
-            <Text style={s.logo}>The Comeback</Text>
-          </View>
-          <Text style={s.subtitle}>Sign in or create an account to start.</Text>
+          <Text style={s.logo}>The Comeback</Text>
+          <Text style={s.subtitle}>{mode === 'signin' ? 'Sign in to continue.' : 'Create your account.'}</Text>
         </View>
 
-        <Text style={s.label}>Email</Text>
+        {mode === 'signup' && (
+          <>
+            <Text style={s.label}>NAME</Text>
+            <TextInput
+              style={s.input}
+              placeholder="Your name"
+              placeholderTextColor="#94a3b8"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          </>
+        )}
+
+        <Text style={s.label}>EMAIL</Text>
         <TextInput
           style={s.input}
           placeholder="you@example.com"
@@ -111,70 +123,65 @@ export default function SignInScreen() {
           autoComplete="email"
         />
 
-        <Text style={s.label}>Password</Text>
+        <Text style={s.label}>PASSWORD</Text>
         <TextInput
           style={s.input}
-          placeholder="At least 6 characters"
+          placeholder="At least 8 characters"
           placeholderTextColor="#94a3b8"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
 
-        <ScalePressable style={[s.btn, loading && s.btnDisabled]} onPress={handleSignIn} disabled={loading}>
-          <Text style={s.btnText}>{loading ? 'Loading...' : 'Continue'}</Text>
-        </ScalePressable>
+        <Pressable
+          style={({ pressed }) => [s.btn, loading && s.btnDisabled, pressed && s.btnPressed]}
+          onPress={mode === 'signin' ? handleSignIn : handleSignUp}
+          disabled={loading}
+        >
+          <Text style={s.btnText}>
+            {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+          </Text>
+        </Pressable>
+
+        <Pressable onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')} style={({ pressed }) => [s.linkBtn, pressed && { opacity: 0.6 }]}>
+          <Text style={s.linkText}>
+            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+            <Text style={s.linkBold}>{mode === 'signin' ? 'Sign Up' : 'Sign In'}</Text>
+          </Text>
+        </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
-  header: { marginBottom: 36 },
-  logoContainer: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  logo: { fontSize: 28, fontWeight: '900', color: '#ffffff', letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: '#64748b', marginTop: 16, lineHeight: 22 },
-  label: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
+  container: { flex: 1, backgroundColor: '#f7f7f5' },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, maxWidth: 420, width: '100%', alignSelf: 'center' },
+  header: { marginBottom: 32 },
+  logo: { fontSize: 24, fontWeight: '600', color: '#0f172a', letterSpacing: -0.4 },
+  subtitle: { fontSize: 15, color: '#64748b', marginTop: 8, lineHeight: 22 },
+  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 8, marginTop: 16 },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 15,
     color: '#0f172a',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   btn: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 28,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 24,
   },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
+  btnDisabled: { opacity: 0.5 },
+  btnPressed: { opacity: 0.7 },
+  btnText: { fontSize: 15, fontWeight: '600', color: '#ffffff' },
+  linkBtn: { alignItems: 'center', marginTop: 20 },
+  linkText: { fontSize: 14, color: '#64748b' },
+  linkBold: { color: '#0f172a', fontWeight: '600' },
 });

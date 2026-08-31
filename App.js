@@ -1,11 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useUser } from '@clerk/clerk-expo';
-import tokenCache from './src/lib/clerkTokenCache';
-import { auth, profile } from './src/lib/supabase';
+import { supabase, profile } from './src/lib/supabase';
 import SignInScreen from './src/screens/auth/SignInScreen';
 import OnboardingScreen from './src/screens/onboarding/OnboardingScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
@@ -14,8 +12,6 @@ import ChatScreen from './src/screens/ChatScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import CustomTabBar from './src/components/CustomTabBar';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-
-const CLERK_PUBLISHABLE_KEY = 'pk_test_c3BlY2lhbC1vcnl4LTkzLmNsZXJrLmFjY291bnRzLmRldiQ';
 
 const Tab = createBottomTabNavigator();
 
@@ -33,14 +29,11 @@ function MainTabs() {
   );
 }
 
-function AuthenticatedApp() {
-  const { user, isLoaded } = useUser();
+function AuthenticatedApp({ onSignOut }) {
   const [onboarded, setOnboarded] = React.useState(false);
   const [checking, setChecking] = React.useState(true);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    auth.setUserId(user.id);
     let mounted = true;
     (async () => {
       try {
@@ -52,13 +45,13 @@ function AuthenticatedApp() {
       if (mounted) setChecking(false);
     })();
     return () => { mounted = false; };
-  }, [isLoaded, user]);
+  }, []);
 
-  if (!isLoaded || checking) {
+  if (checking) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>The Comeback</Text>
+        <Text style={styles.loadingText}>Loading</Text>
       </View>
     );
   }
@@ -71,20 +64,42 @@ function AuthenticatedApp() {
 }
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Loading</Text>
+      </View>
+    );
+  }
+
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <ThemeProvider>
-        <NavigationContainer>
-          <ThemedStatusBar />
-          <SignedIn>
-            <AuthenticatedApp />
-          </SignedIn>
-          <SignedOut>
-            <SignInScreen />
-          </SignedOut>
-        </NavigationContainer>
-      </ThemeProvider>
-    </ClerkProvider>
+    <ThemeProvider>
+      <NavigationContainer>
+        <ThemedStatusBar />
+        {session ? (
+          <AuthenticatedApp />
+        ) : (
+          <SignInScreen onAuthChange={() => {}} />
+        )}
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
 
@@ -94,6 +109,6 @@ function ThemedStatusBar() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafbfc' },
-  loadingText: { fontSize: 20, fontWeight: '800', marginTop: 16, color: '#0f172a' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f7f5' },
+  loadingText: { fontSize: 15, fontWeight: '500', marginTop: 16, color: '#94a3b8' },
 });

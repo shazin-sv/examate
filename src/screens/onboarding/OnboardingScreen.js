@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
-  SafeAreaView, Alert, ActivityIndicator, Platform,
+  SafeAreaView, Alert, ActivityIndicator, Platform, Pressable,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { db, profile } from '../../lib/supabase';
@@ -269,7 +269,7 @@ export default function OnboardingScreen({ onComplete }) {
         <Text style={s.stepDesc}>Add your upcoming exams. Toggle to include/exclude. First exam needs a date.</Text>
         {exams.map((exam, idx) => (
           <FadeScalePressable key={idx} style={s.examCard}>
-            <ScalePressable
+            <Pressable
               style={s.examToggle}
               onPress={() => {
                 const updated = [...exams];
@@ -280,7 +280,7 @@ export default function OnboardingScreen({ onComplete }) {
               <Text style={[s.examCheck, exam.selected && { color: '#22c55e' }]}>
                 {exam.selected ? '✓' : '○'}
               </Text>
-            </ScalePressable>
+            </Pressable>
             <View style={s.examInfo}>
               <Text style={s.examName}>{exam.name}</Text>
               {exam.selected && (
@@ -292,24 +292,22 @@ export default function OnboardingScreen({ onComplete }) {
                   ) : (
                     <Text style={s.examDateNeeded}>Date required</Text>
                   )}
-                  <ScalePressable
+                  <Pressable
                     style={s.examDateBtn}
-                    onPress={() => {
-                      Alert.alert('Set Date', 'Choose an option:', [
-                        { text: 'Pick Date', onPress: () => {
-                          setDatePickerIdx(idx);
-                        }},
-                        { text: 'Date not announced', onPress: () => {
-                          const updated = [...exams];
-                          updated[idx] = { ...updated[idx], tbd: true, date: '' };
-                          setExams(updated);
-                        }},
-                        { text: 'Cancel', style: 'cancel' },
-                      ]);
-                    }}
+                    onPress={() => setDatePickerIdx(idx)}
                   >
                     <Text style={s.examDateBtnText}>{exam.date || exam.tbd ? 'Edit' : 'Set'}</Text>
-                  </ScalePressable>
+                  </Pressable>
+                  <Pressable
+                    style={[s.examDateBtn, { backgroundColor: '#fef3c7' }]}
+                    onPress={() => {
+                      const updated = [...exams];
+                      updated[idx] = { ...updated[idx], tbd: !updated[idx].tbd, date: updated[idx].tbd ? '' : updated[idx].date };
+                      setExams(updated);
+                    }}
+                  >
+                    <Text style={[s.examDateBtnText, { color: '#92400e' }]}>{exam.tbd ? 'Set Date' : 'TBD'}</Text>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -416,7 +414,33 @@ export default function OnboardingScreen({ onComplete }) {
         {step === 4 && renderStep4()}
       </View>
 
-      {datePickerIdx !== null && (
+      {datePickerIdx !== null && Platform.OS === 'web' && (
+        <View style={s.webDatePickerOverlay}>
+          <View style={s.webDatePickerModal}>
+            <Text style={s.webDatePickerTitle}>Select Date</Text>
+            <input
+              type="date"
+              min={new Date().toISOString().split('T')[0]}
+              value={exams[datePickerIdx]?.date || ''}
+              onChange={(e) => {
+                const dateStr = e.target.value;
+                if (dateStr) {
+                  const updated = [...exams];
+                  updated[datePickerIdx] = { ...updated[datePickerIdx], date: dateStr, tbd: false };
+                  setExams(updated);
+                }
+                setDatePickerIdx(null);
+              }}
+              style={{ fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', width: '100%', marginBottom: 12 }}
+            />
+            <ScalePressable style={s.webDatePickerClose} onPress={() => setDatePickerIdx(null)}>
+              <Text style={s.webDatePickerCloseText}>Cancel</Text>
+            </ScalePressable>
+          </View>
+        </View>
+      )}
+
+      {datePickerIdx !== null && Platform.OS !== 'web' && (
         <DateTimePicker
           value={datePickerValue}
           mode="date"
@@ -611,4 +635,16 @@ const s = StyleSheet.create({
   examDateNeeded: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
   examDateBtn: { backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   examDateBtnText: { fontSize: 11, fontWeight: '700', color: '#3b82f6' },
+
+  webDatePickerOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 999,
+  },
+  webDatePickerModal: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12,
+  },
+  webDatePickerTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
+  webDatePickerClose: { backgroundColor: '#f1f5f9', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  webDatePickerCloseText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
 });

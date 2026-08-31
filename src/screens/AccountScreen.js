@@ -2,22 +2,30 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, Alert, TextInput, Switch,
 } from 'react-native';
-import { useClerk, useUser } from '@clerk/clerk-expo';
 import { ScalePressable } from '../components/AnimatedPressable';
-import { db } from '../lib/supabase';
+import { db, auth, supabase, profile } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 export default function AccountScreen() {
-  const { signOut, user } = useClerk();
   const { isDark, toggleTheme } = useTheme();
+  const [user, setUser] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(user?.firstName || '');
+  const [nameInput, setNameInput] = useState('');
 
-  useEffect(() => { loadStats(); }, []);
+  useEffect(() => {
+    loadUser();
+    loadStats();
+  }, []);
+
+  async function loadUser() {
+    const u = await auth.getUser();
+    setUser(u);
+    setNameInput(u?.user_metadata?.display_name || '');
+  }
 
   async function loadStats() {
     try {
@@ -36,7 +44,9 @@ export default function AccountScreen() {
     const trimmed = nameInput.trim();
     if (!trimmed) return;
     try {
-      await user?.update({ firstName: trimmed });
+      await supabase.auth.updateUser({ data: { display_name: trimmed } });
+      await profile?.update?.({ display_name: trimmed });
+      setUser({ ...user, user_metadata: { ...user?.user_metadata, display_name: trimmed } });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       console.log(e);
@@ -48,7 +58,7 @@ export default function AccountScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+      { text: 'Sign Out', style: 'destructive', onPress: () => auth.signOut() },
     ]);
   }
 
@@ -67,6 +77,10 @@ export default function AccountScreen() {
     );
   }
 
+  const displayName = user?.user_metadata?.display_name || 'Student';
+  const email = user?.email || '';
+  const initial = displayName?.[0]?.toUpperCase() || email?.[0]?.toUpperCase() || '?';
+
   const totalScheduled = schedule.length;
   const uniqueDates = [...new Set(schedule.map(s => s.date_key))].length;
   const th = isDark ? dark : light;
@@ -74,10 +88,9 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={[s.container, { backgroundColor: th.bg }]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={s.header}>
           <View style={[s.avatarLarge, { backgroundColor: th.primary }]}>
-            <Text style={s.avatarText}>{user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || '?'}</Text>
+            <Text style={s.avatarText}>{initial}</Text>
           </View>
           {editingName ? (
             <View style={s.nameEditRow}>
@@ -94,13 +107,12 @@ export default function AccountScreen() {
             </View>
           ) : (
             <ScalePressable onPress={() => setEditingName(true)}>
-              <Text style={[s.userName, { color: th.text }]}>{user?.firstName || 'Student'} ✏️</Text>
+              <Text style={[s.userName, { color: th.text }]}>{displayName}</Text>
             </ScalePressable>
           )}
-          <Text style={[s.userEmail, { color: th.textMuted }]}>{user?.emailAddresses?.[0]?.emailAddress || ''}</Text>
+          <Text style={[s.userEmail, { color: th.textMuted }]}>{email}</Text>
         </View>
 
-        {/* Stats */}
         <View style={s.statsRow}>
           {[
             { num: subjects.length, label: 'Subjects' },
@@ -115,7 +127,6 @@ export default function AccountScreen() {
           ))}
         </View>
 
-        {/* Settings */}
         <View style={s.section}>
           <Text style={[s.sectionTitle, { color: th.textMuted }]}>SETTINGS</Text>
           <View style={[s.settingRow, { backgroundColor: th.card }]}>
@@ -132,7 +143,6 @@ export default function AccountScreen() {
           </View>
         </View>
 
-        {/* Subjects */}
         <View style={s.section}>
           <Text style={[s.sectionTitle, { color: th.textMuted }]}>SUBJECTS ({subjects.length})</Text>
           {subjects.map((subj, i) => {
@@ -148,15 +158,14 @@ export default function AccountScreen() {
           {subjects.length === 0 && <Text style={[s.emptyText, { color: th.textMuted }]}>No subjects yet</Text>}
         </View>
 
-        {/* Actions */}
         <View style={s.section}>
           <Text style={[s.sectionTitle, { color: th.textMuted }]}>QUICK ACTIONS</Text>
           <ScalePressable style={[s.actionBtn, { backgroundColor: th.card }]} onPress={handleResetOnboarding}>
-            <Text style={[s.actionBtnText, { color: th.text }]}>🔄 Reset Onboarding</Text>
+            <Text style={[s.actionBtnText, { color: th.text }]}>Reset Onboarding</Text>
             <Text style={[s.actionBtnDesc, { color: th.textMuted }]}>Retake the subject/chapter setup</Text>
           </ScalePressable>
           <ScalePressable style={[s.actionBtn, { backgroundColor: th.dangerBg }]} onPress={handleSignOut}>
-            <Text style={[s.actionBtnText, { color: th.danger }]}>🚪 Sign Out</Text>
+            <Text style={[s.actionBtnText, { color: th.danger }]}>Sign Out</Text>
             <Text style={[s.actionBtnDesc, { color: th.textMuted }]}>Sign out of your account</Text>
           </ScalePressable>
         </View>

@@ -4,7 +4,7 @@ const ThemeContext = createContext();
 
 const lightTheme = {
   isDark: false,
-  bg: '#fafbfc',
+  bg: '#f7f7f5',
   card: '#ffffff',
   cardAlt: '#f8fafc',
   text: '#0f172a',

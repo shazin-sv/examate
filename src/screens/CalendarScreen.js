@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput,
+  View, Text, ScrollView, TextInput,
   StyleSheet, SafeAreaView, Alert, Animated, Dimensions,
   RefreshControl, PanResponder,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { formatDate, addDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths,
-  getWeek } from '../lib/dateUtils';
+} from '../lib/dateUtils';
 import { SUBJECT_COLORS } from '../data/chapters';
 import { db } from '../lib/supabase';
-import { ScalePressable, FadeScalePressable, GlowPressable } from '../components/AnimatedPressable';
+import { ScalePressable, FadeScalePressable } from '../components/AnimatedPressable';
 import AnimatedBottomSheet from '../components/AnimatedBottomSheet';
 import { CalendarSkeleton } from '../components/Shimmer';
 import { useTheme } from '../context/ThemeContext';
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CELL_SIZE = SCREEN_WIDTH / 7;
+const CAL_WIDTH = Math.min(SCREEN_WIDTH, 720);
+const CELL_SIZE = CAL_WIDTH / 7;
 
 export default function CalendarScreen() {
   const { theme } = useTheme();
@@ -35,14 +36,10 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [panelOrder, setPanelOrder] = useState(['todayPlan', 'theme', 'topics', 'revisions']);
+  const panelOrder = ['todayPlan', 'theme', 'topics', 'revisions'];
   const [allSubjects, setAllSubjects] = useState([]);
   const [subjectsMap, setSubjectsMap] = useState({});
   const [chaptersMap, setChaptersMap] = useState({});
-
-  const fabScale = useRef(new Animated.Value(1)).current;
-  const fabRotate = useRef(new Animated.Value(0)).current;
-  const swipeAnim = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -61,9 +58,6 @@ export default function CalendarScreen() {
     })
   ).current;
 
-  const examDate = new Date(2026, 7, 14);
-  const daysLeft = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
-
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calStart = startOfWeek(monthStart);
@@ -71,14 +65,6 @@ export default function CalendarScreen() {
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   useEffect(() => { loadAll(); }, []);
-
-  useEffect(() => {
-    if (showAssign) {
-      Animated.spring(fabRotate, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-    } else {
-      Animated.spring(fabRotate, { toValue: 0, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-    }
-  }, [showAssign]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -178,14 +164,6 @@ export default function CalendarScreen() {
     return due;
   }
 
-  function movePanel(idx, dir) {
-    const newOrder = [...panelOrder];
-    const swap = idx + dir;
-    if (swap < 0 || swap >= newOrder.length) return;
-    [newOrder[idx], newOrder[swap]] = [newOrder[swap], newOrder[idx]];
-    setPanelOrder(newOrder);
-  }
-
   function getSubjectDisplayName(subj) {
     return subj.name || 'Unknown';
   }
@@ -272,11 +250,6 @@ export default function CalendarScreen() {
     { label: '+7', date: addDays(assignDate, 7), color: '#22c55e' },
   ] : [];
 
-  const fabRotation = fabRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '45deg'],
-  });
-
   function renderPanel(key) {
     switch (key) {
       case 'todayPlan':
@@ -284,10 +257,10 @@ export default function CalendarScreen() {
           <View key="todayPlan">
             <View style={s.sectionHeader}>
               <Text style={s.sectionLabel}>TODAY</Text>
-              {isTodaySelected && (
-                <View style={s.planBadge}>
-                  <Text style={s.planBadgeText}>{studyToday.length + reviseToday.length}</Text>
-                </View>
+              {isTodaySelected && (studyToday.length + reviseToday.length) > 0 && (
+                <Text style={[s.sectionCount, { backgroundColor: 'transparent', color: theme.textMuted }]}>
+                  {studyToday.length + reviseToday.length}
+                </Text>
               )}
             </View>
             {!isTodaySelected ? (
@@ -331,8 +304,7 @@ export default function CalendarScreen() {
                 )}
                 {studyToday.length === 0 && reviseToday.length === 0 && (
                   <View style={s.emptyPlanBox}>
-                    <Text style={s.emptyPlanEmoji}>🎉</Text>
-                    <Text style={s.emptyPlanText}>Nothing scheduled!</Text>
+                    <Text style={s.emptyPlanText}>Nothing scheduled</Text>
                   </View>
                 )}
               </>
@@ -422,8 +394,7 @@ export default function CalendarScreen() {
             </View>
             {selRevisions.length === 0 ? (
               <View style={s.emptyPlanBox}>
-                <Text style={s.emptyPlanEmoji}>✨</Text>
-                <Text style={s.emptyPlanText}>All caught up!</Text>
+                <Text style={s.emptyPlanText}>Nothing due</Text>
               </View>
             ) : (
               <View style={s.revList}>
@@ -469,59 +440,27 @@ export default function CalendarScreen() {
         }
         {...panResponder.panHandlers}
       >
-        {/* TOP BAR */}
-        <View style={s.topBar}>
-          <View>
-            <Text style={[s.title, { color: theme.text }]}>The Comeback</Text>
-            <Text style={[s.subtitle, { color: theme.textMuted }]}>{formatDate(currentMonth, 'MMMM yyyy')}</Text>
-          </View>
-          <View style={s.countdownBox}>
-            <Text style={s.countdownNumber}>{daysLeft}</Text>
-            <Text style={s.countdownLabel}>days</Text>
-          </View>
-        </View>
-
         {/* MONTH NAV */}
         <View style={s.monthNav}>
           <ScalePressable onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} style={s.navBtn}>
-            <Text style={s.navBtnText}>‹</Text>
+            <Text style={[s.navBtnText, { color: theme.textSecondary }]}>‹</Text>
           </ScalePressable>
           <View style={s.monthTitleBox}>
-            <Text style={s.monthTitle}>{formatDate(currentMonth, 'MMMM yyyy')}</Text>
+            <Text style={[s.monthTitle, { color: theme.text }]}>{formatDate(currentMonth, 'MMMM yyyy')}</Text>
             <ScalePressable onPress={() => { setCurrentMonth(new Date()); setSelectedDate(new Date()); }} style={s.todayBtn}>
-              <Text style={s.todayBtnText}>Today</Text>
+              <Text style={[s.todayBtnText, { color: theme.textSecondary }]}>Today</Text>
             </ScalePressable>
           </View>
           <ScalePressable onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} style={s.navBtn}>
-            <Text style={s.navBtnText}>›</Text>
+            <Text style={[s.navBtnText, { color: theme.textSecondary }]}>›</Text>
           </ScalePressable>
-        </View>
-
-        {/* LEGEND */}
-        <View style={s.legendWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.legendScrollInner}>
-            {allSubjects.length > 0 ? allSubjects.map(subj => {
-              const sc = getSubjectColor(subj);
-              return (
-                <View key={subj.id} style={[s.legendItem, { backgroundColor: sc.light }]}>
-                  <View style={[s.legendDot, { backgroundColor: sc.dot }]} />
-                  <Text style={[s.legendText, { color: sc.fg }]}>{getSubjectDisplayName(subj).slice(0, 4)}</Text>
-                </View>
-              );
-            }) : Object.entries(SUBJECT_COLORS).slice(0, 5).map(([name, sc]) => (
-              <View key={name} style={[s.legendItem, { backgroundColor: sc.light || '#f1f5f9' }]}>
-                <View style={[s.legendDot, { backgroundColor: sc.dot }]} />
-                <Text style={[s.legendText, { color: sc.fg }]}>{name.slice(0, 4)}</Text>
-              </View>
-            ))}
-          </ScrollView>
         </View>
 
         {/* DAY HEADERS */}
         <View style={s.dayHeaders}>
           {DAY_NAMES.map((d, i) => (
             <View key={i} style={s.dayHeaderCell}>
-              <Text style={[s.dayHeader, i === 0 && s.dayHeaderSun, i === 6 && s.dayHeaderSat]}>{d}</Text>
+              <Text style={s.dayHeader}>{d}</Text>
             </View>
           ))}
         </View>
@@ -537,9 +476,6 @@ export default function CalendarScreen() {
             const hasTheme = themes[dk] && themes[dk].trim().length > 0;
             const revDue = getRevisionsDue(dk);
             const hasRevDue = revDue.length > 0;
-            const dayOfWeek = day.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
             return (
               <ScalePressable
                 key={i}
@@ -557,7 +493,6 @@ export default function CalendarScreen() {
                       s.dayNumText,
                       todayMark && s.dayNumTextToday,
                       !inMonth && s.dayNumTextOutside,
-                      isWeekend && inMonth && s.dayNumTextWeekend,
                     ]}>
                       {formatDate(day, 'd')}
                     </Text>
@@ -593,29 +528,13 @@ export default function CalendarScreen() {
         {/* SELECTED DATE HEADER */}
         <View style={s.dateInfoBar}>
           <View style={s.dateInfoLeft}>
-            <Text style={s.sideDate}>{formatDate(selectedDate, 'MMM d')}</Text>
-            <Text style={s.sideDay}>{formatDate(selectedDate, 'EEEE')}</Text>
-          </View>
-          <View style={s.dateInfoRight}>
-            <Text style={s.sideWeek}>Week {getWeek(selectedDate)}</Text>
+            <Text style={[s.sideDate, { color: theme.text }]}>{formatDate(selectedDate, 'EEE, MMM d')}</Text>
           </View>
         </View>
 
         {/* PANELS */}
-        {panelOrder.map((key, idx) => (
+        {panelOrder.map((key) => (
           <View key={key} style={s.panelBlock}>
-            <View style={s.panelReorderRow}>
-              {idx > 0 && (
-                <ScalePressable onPress={() => movePanel(idx, -1)} style={s.arrowBtn}>
-                  <Text style={s.arrowBtnText}>↑</Text>
-                </ScalePressable>
-              )}
-              {idx < panelOrder.length - 1 && (
-                <ScalePressable onPress={() => movePanel(idx, 1)} style={s.arrowBtn}>
-                  <Text style={s.arrowBtnText}>↓</Text>
-                </ScalePressable>
-              )}
-            </View>
             {renderPanel(key)}
           </View>
         ))}
@@ -697,19 +616,17 @@ export default function CalendarScreen() {
 
       {/* FAB */}
       <ScalePressable
-        style={s.fab}
+        style={[s.fab, { backgroundColor: theme.text }]}
         onPress={() => { setAssignDate(selectedDate); setShowAssign(true); }}
       >
-        <Animated.View style={{ transform: [{ rotate: fabRotation }] }}>
-          <Text style={s.fabText}>+</Text>
-        </Animated.View>
+        <Text style={s.fabText}>+</Text>
       </ScalePressable>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
+  container: { flex: 1, backgroundColor: '#fafbfc', width: '100%', maxWidth: 720, alignSelf: 'center' },
   loadingContainer: { flex: 1, justifyContent: 'center', paddingTop: 100 },
   scrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
@@ -724,16 +641,6 @@ const s = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '800', color: '#0f172a', letterSpacing: -0.5 },
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
-  countdownBox: {
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    alignItems: 'center',
-    minWidth: 48,
-  },
-  countdownNumber: { fontSize: 20, fontWeight: '800', color: '#dc2626' },
-  countdownLabel: { fontSize: 8, fontWeight: '600', color: '#dc2626', marginTop: -2 },
 
   monthNav: {
     flexDirection: 'row',
@@ -762,12 +669,10 @@ const s = StyleSheet.create({
   navBtnText: { fontSize: 18, color: '#334155', fontWeight: '400' },
   monthTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', textAlign: 'center' },
   todayBtn: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
   },
-  todayBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  todayBtnText: { fontSize: 12, fontWeight: '500', color: '#64748b' },
 
   legendWrap: {
     alignItems: 'center',
@@ -794,9 +699,7 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   dayHeaderCell: { flex: 1, alignItems: 'center' },
-  dayHeader: { fontSize: 11, fontWeight: '700', color: '#94a3b8' },
-  dayHeaderSun: { color: '#ef4444' },
-  dayHeaderSat: { color: '#3b82f6' },
+  dayHeader: { fontSize: 11, fontWeight: '600', color: '#94a3b8' },
 
   calGrid: {
     flexDirection: 'row',
@@ -812,12 +715,12 @@ const s = StyleSheet.create({
   },
   dayCellOutside: { opacity: 0.3 },
   dayCellSelected: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#3b82f6',
-    borderWidth: 1.5,
+    backgroundColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
+    borderWidth: 1,
   },
   dayCellToday: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'transparent',
   },
   dayNumRow: {
     flexDirection: 'row',
@@ -832,11 +735,10 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayNumToday: { backgroundColor: '#3b82f6' },
+  dayNumToday: { backgroundColor: '#0f172a' },
   dayNumText: { fontSize: 11, fontWeight: '600', color: '#334155' },
-  dayNumTextToday: { color: '#fff', fontWeight: '700' },
+  dayNumTextToday: { color: '#fff', fontWeight: '600' },
   dayNumTextOutside: { color: '#cbd5e1' },
-  dayNumTextWeekend: { color: '#ef4444' },
   dotsRow: { flexDirection: 'row', gap: 2 },
   themeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#a78bfa' },
   revDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#f59e0b' },
@@ -863,18 +765,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingTop: 10,
-    paddingBottom: 6,
-    marginTop: 2,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingTop: 16,
+    paddingBottom: 4,
+    marginTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
   },
   dateInfoLeft: {},
-  sideDate: { fontSize: 18, fontWeight: '800', color: '#0f172a', letterSpacing: -0.5 },
-  sideDay: { fontSize: 12, color: '#64748b', marginTop: 1 },
-  dateInfoRight: { alignItems: 'flex-end' },
-  sideWeek: { fontSize: 10, fontWeight: '600', color: '#94a3b8', backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 },
+  sideDate: { fontSize: 16, fontWeight: '600', color: '#0f172a', letterSpacing: -0.3 },
 
   panelBlock: { paddingHorizontal: 4, marginBottom: 2 },
   panelReorderRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingRight: 4, gap: 4 },
@@ -901,13 +800,12 @@ const s = StyleSheet.create({
   },
 
   emptyPlanBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
     borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
-  emptyPlanEmoji: { fontSize: 20, marginBottom: 6 },
-  emptyPlanText: { fontSize: 12, color: '#94a3b8' },
+  emptyPlanText: { fontSize: 13, color: '#94a3b8' },
 
   planSection: { gap: 4 },
   planCard: {
@@ -1000,21 +898,16 @@ const s = StyleSheet.create({
 
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 80,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#3b82f6',
+    right: 20,
+    bottom: 72,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0f172a',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
-  fabText: { fontSize: 26, color: '#fff', fontWeight: '300', marginTop: -2 },
+  fabText: { fontSize: 24, color: '#fff', fontWeight: '300', marginTop: -1 },
 
   modalContent: { padding: 20 },
   modalTitle: { fontSize: 22, fontWeight: '800', color: '#0f172a' },

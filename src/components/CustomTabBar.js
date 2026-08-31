@@ -1,69 +1,41 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const TAB_ICONS = {
-  Calendar: { active: '📅', inactive: '📅', label: 'Calendar' },
-  Chapters: { active: '📖', inactive: '📖', label: 'Chapters' },
-  'AI Chat': { active: '🤖', inactive: '🤖', label: 'AI Chat' },
-  Account: { active: '👤', inactive: '👤', label: 'Account' },
+const TAB_LABELS = {
+  Calendar: 'Plan',
+  Chapters: 'Log',
+  'AI Chat': 'Ask',
+  Account: 'You',
 };
 
-export default function CustomTabBar({ state, descriptors, navigation }) {
-  const indicatorLeft = useRef(new Animated.Value(0)).current;
-  const tabCount = state.routes.length;
-  const TAB_WIDTH = SCREEN_WIDTH / tabCount;
-  const INDICATOR_WIDTH = 48;
-
-  useEffect(() => {
-    const targetLeft = state.index * TAB_WIDTH + (TAB_WIDTH - INDICATOR_WIDTH) / 2;
-    Animated.spring(indicatorLeft, {
-      toValue: targetLeft,
-      useNativeDriver: false,
-      speed: 40,
-      bounciness: 8,
-    }).start();
-  }, [state.index]);
+export default function CustomTabBar({ state, navigation }) {
+  const { theme } = useTheme();
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, { backgroundColor: theme.card, borderTopColor: theme.borderLight }]}>
       <View style={s.tabBar}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
-          const tabInfo = TAB_ICONS[route.name] || { active: '•', inactive: '•', label: route.name };
+          const label = TAB_LABELS[route.name] || route.name;
 
           return (
             <TouchableOpacity
               key={route.name}
               style={s.tab}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation.navigate(route.name);
-              }}
+              onPress={() => navigation.navigate(route.name)}
               activeOpacity={0.7}
             >
-              <Text style={[s.tabIcon, isFocused && s.tabIconActive]}>
-                {isFocused ? tabInfo.active : tabInfo.inactive}
-              </Text>
-              <Text style={[s.tabLabel, isFocused && s.tabLabelActive]}>
-                {tabInfo.label}
+              <Text style={[
+                s.tabLabel,
+                { color: isFocused ? theme.text : theme.textMuted },
+                isFocused && s.tabLabelActive,
+              ]}>
+                {label}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </View>
-      <View style={s.indicatorTrack}>
-        <Animated.View
-          style={[
-            s.indicator,
-            {
-              width: INDICATOR_WIDTH,
-              left: indicatorLeft,
-            },
-          ]}
-        />
       </View>
     </View>
   );
@@ -71,48 +43,24 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingBottom: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 6,
   },
   tabBar: {
     flexDirection: 'row',
-    height: 52,
+    height: 44,
   },
   tab: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 2,
-  },
-  tabIcon: {
-    fontSize: 20,
-    opacity: 0.5,
-  },
-  tabIconActive: {
-    opacity: 1,
-    fontSize: 22,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   tabLabelActive: {
-    color: '#3b82f6',
-    fontWeight: '700',
-  },
-  indicatorTrack: {
-    height: 3,
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
-  indicator: {
-    height: 3,
-    backgroundColor: '#3b82f6',
-    borderRadius: 1.5,
-    position: 'absolute',
-    top: 0,
+    fontWeight: '600',
   },
 });

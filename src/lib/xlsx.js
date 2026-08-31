@@ -1,7 +1,12 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
+import { Platform } from 'react-native';
 import * as XLSX from 'xlsx';
+
+let FileSystem, Sharing, DocumentPicker;
+if (Platform.OS !== 'web') {
+  FileSystem = require('expo-file-system/legacy');
+  Sharing = require('expo-sharing');
+  DocumentPicker = require('expo-document-picker');
+}
 
 export function generateTemplate(subjects) {
   const wb = XLSX.utils.book_new();
@@ -28,44 +33,81 @@ export function generateTemplate(subjects) {
   ws['!cols'] = [{ wch: 20 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Chapters');
 
-  const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-  return wbout;
+  return wb;
 }
 
 export async function downloadTemplate(subjects) {
-  try {
-    const wbout = generateTemplate(subjects);
-    const dir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-    const uri = dir + 'chapters_template.xlsx';
+  const wb = generateTemplate(subjects);
+  const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
 
-    await FileSystem.writeAsStringAsync(uri, wbout, {
-      encoding: 'base64',
-    });
-
-    const info = await FileSystem.getInfoAsync(uri);
-    if (!info.exists) {
-      throw new Error('File was not created');
-    }
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: 'Save Chapter Template',
-      });
-    }
-    return uri;
-  } catch (e) {
-    console.log('Template download error:', e);
-    throw e;
+  if (Platform.OS === 'web') {
+    const binaryStr = atob(wbout);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chapters_template.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return;
   }
+
+  const dir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+  const uri = dir + 'chapters_template.xlsx';
+  await FileSystem.writeAsStringAsync(uri, wbout, { encoding: 'base64' });
+
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      dialogTitle: 'Save Chapter Template',
+    });
+  }
+  return uri;
+}
+
+function readWebFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function importFromExcel() {
+  if (Platform.OS === 'web') {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,.xls';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) { resolve(null); return; }
+        try {
+          const base64 = await readWebFile(file);
+          const wb = XLSX.read(base64, { type: 'base64' });
+          const data = parseSheet(wb);
+          resolve(data);
+        } catch (err) {
+          console.log('Import error:', err);
+          resolve(null);
+        }
+      };
+      input.click();
+    });
+  }
+
   const result = await DocumentPicker.getDocumentAsync({
     type: [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-excel',
-      '*/*',
     ],
     copyToCacheDirectory: true,
   });
@@ -73,11 +115,12 @@ export async function importFromExcel() {
   if (result.canceled || !result.assets?.[0]) return null;
 
   const fileUri = result.assets[0].uri;
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: 'base64',
-  });
+  const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: 'base64' });
   const wb = XLSX.read(base64, { type: 'base64' });
+  return parseSheet(wb);
+}
 
+function parseSheet(wb) {
   const sheetName = wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1 });

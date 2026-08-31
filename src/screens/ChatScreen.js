@@ -3,8 +3,6 @@ import {
   View, Text, TextInput, ScrollView, StyleSheet, SafeAreaView,
   KeyboardAvoidingView, Platform, Alert, Animated,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useClerk } from '@clerk/clerk-expo';
 import { chat } from '../lib/ai';
 import { ScalePressable, FadeScalePressable } from '../components/AnimatedPressable';
 import { useTheme } from '../context/ThemeContext';
@@ -129,7 +127,6 @@ function TypingDots({ color }) {
 
 export default function ChatScreen() {
   const { theme } = useTheme();
-  const { signOut } = useClerk();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -140,7 +137,7 @@ export default function ChatScreen() {
     if (messages.length === 0) {
       const welcomeMsg = {
         role: 'assistant',
-        content: "Hey! I'm **TheComebackAI** 🤖\n\nAsk me anything about your exam prep — chapter summaries, formulas, study tips, or revision strategies.\n\nTap a quick prompt below or type your own question!",
+        content: "Ask about a chapter, a formula, or how you'd like to revise. Type below or pick a prompt.",
       };
       setMessages([welcomeMsg]);
       setTimestamps({ 0: formatTime() });
@@ -157,7 +154,6 @@ export default function ChatScreen() {
     const msg = text || input.trim();
     if (!msg || loading) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const userMsg = { role: 'user', content: msg };
     const newMessages = [...messages, userMsg];
     const newIdx = newMessages.length - 1;
@@ -201,50 +197,24 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
-      <View style={[s.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <View style={s.headerLeft}>
-          <View style={[s.avatar, { backgroundColor: theme.input }]}>
-            <Text style={s.avatarText}>🤖</Text>
-          </View>
-          <View>
-            <Text style={[s.headerTitle, { color: theme.text }]}>TheComebackAI</Text>
-            <View style={s.statusRow}>
-              <View style={[s.headerDot, { backgroundColor: '#22c55e' }]} />
-              <Text style={s.headerStatus}>Online</Text>
-            </View>
-          </View>
-        </View>
-        <View style={s.headerRight}>
-          {messages.length > 1 && (
-            <ScalePressable
-              style={[s.clearBtn, { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert('Clear Chat', 'Delete all messages?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Clear', style: 'destructive', onPress: () => {
-                    setMessages([messages[0]]);
-                    setTimestamps({ 0: timestamps[0] || formatTime() });
-                  }},
-                ]);
-              }}
-            >
-              <Text style={[s.clearBtnText, { color: theme.danger }]}>Clear</Text>
-            </ScalePressable>
-          )}
+      <View style={[s.header, { backgroundColor: theme.bg, borderBottomColor: theme.borderLight }]}>
+        <Text style={[s.headerTitle, { color: theme.text }]}>Ask</Text>
+        {messages.length > 1 && (
           <ScalePressable
-            style={[s.signOutBtn, { backgroundColor: theme.input }]}
+            style={s.clearBtn}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert('Sign Out', 'Are you sure?', [
+              Alert.alert('Clear Chat', 'Delete all messages?', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+                { text: 'Clear', style: 'destructive', onPress: () => {
+                  setMessages([messages[0]]);
+                  setTimestamps({ 0: timestamps[0] || formatTime() });
+                }},
               ]);
             }}
           >
-            <Text style={[s.signOutBtnText, { color: theme.textSecondary }]}>Sign Out</Text>
+            <Text style={[s.clearBtnText, { color: theme.textMuted }]}>Clear</Text>
           </ScalePressable>
-        </View>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -311,45 +281,18 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e2e8f0',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: { fontSize: 20 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  headerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
-  headerStatus: { fontSize: 11, color: '#22c55e', fontWeight: '600' },
-  headerRight: { flexDirection: 'row', gap: 8 },
-  
+  headerTitle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
   clearBtn: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  clearBtnText: { fontSize: 12, fontWeight: '700', color: '#dc2626' },
-  signOutBtn: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  signOutBtnText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  clearBtnText: { fontSize: 13, fontWeight: '500', color: '#94a3b8' },
   
   chatArea: { flex: 1 },
   messages: { flex: 1 },

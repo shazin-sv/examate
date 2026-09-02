@@ -68,7 +68,7 @@ export function FadeScalePressable({ children, onPress, style, scaleTo = 0.97, d
   );
 }
 
-export function GlowPressable({ children, onPress, style, glowColor = '#3b82f6', disabled }) {
+export function GlowPressable({ children, onPress, style, glowColor = '#b5b5b5', disabled }) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const glowOpacity = React.useRef(new Animated.Value(0)).current;
 

@@ -25,7 +25,7 @@ function renderMarkdown(text) {
   if (!text) return null;
   const parts = [];
   const lines = text.split('\n');
-  
+
   lines.forEach((line, lineIdx) => {
     if (line.startsWith('### ')) {
       parts.push(<Text key={`h3-${lineIdx}`} style={s.mdH3}>{line.slice(4)}</Text>);
@@ -118,9 +118,9 @@ function TypingDots({ color }) {
 
   return (
     <View style={s.typingRow}>
-      <Animated.View style={[s.typingDot, { opacity: dot1, backgroundColor: color || '#94a3b8' }]} />
-      <Animated.View style={[s.typingDot, { opacity: dot2, backgroundColor: color || '#94a3b8' }]} />
-      <Animated.View style={[s.typingDot, { opacity: dot3, backgroundColor: color || '#94a3b8' }]} />
+      <Animated.View style={[s.typingDot, { opacity: dot1, backgroundColor: color || '#b5b5b5' }]} />
+      <Animated.View style={[s.typingDot, { opacity: dot2, backgroundColor: color || '#b5b5b5' }]} />
+      <Animated.View style={[s.typingDot, { opacity: dot3, backgroundColor: color || '#b5b5b5' }]} />
     </View>
   );
 }
@@ -175,14 +175,14 @@ export default function ChatScreen() {
     const isUser = msg.role === 'user';
     const ts = timestamps[i];
     return (
-      <FadeScalePressable key={i} style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAI, isUser && { backgroundColor: theme.primary }]}>
+      <FadeScalePressable key={i} style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAI, isUser && { backgroundColor: theme.text }]}>
         {!isUser && (
           <View style={[s.aiLabelContainer, { backgroundColor: theme.input }]}>
-            <Text style={[s.aiLabel, { color: theme.textSecondary }]}>AI</Text>
+            <Text style={[s.aiLabel, { color: theme.textMuted }]}>AI</Text>
           </View>
         )}
         {isUser ? (
-          <Text style={[s.bubbleText, { color: '#ffffff' }]}>{msg.content}</Text>
+          <Text style={[s.bubbleText, { color: theme.bg }]}>{msg.content}</Text>
         ) : (
           <View>{renderMarkdown(msg.content)}</View>
         )}
@@ -232,7 +232,7 @@ export default function ChatScreen() {
           {loading && (
             <View style={[s.bubble, s.bubbleAI, { backgroundColor: theme.card }, s.typingBubble]}>
               <View style={[s.aiLabelContainer, { backgroundColor: theme.input }]}>
-                <Text style={[s.aiLabel, { color: theme.textSecondary }]}>AI</Text>
+                <Text style={[s.aiLabel, { color: theme.textMuted }]}>AI</Text>
               </View>
               <TypingDots color={theme.textMuted} />
             </View>
@@ -243,13 +243,13 @@ export default function ChatScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.quickBar} contentContainerStyle={s.quickBarContent}>
             {QUICK_PROMPTS.map((p, i) => (
               <ScalePressable key={i} style={[s.quickBtn, { backgroundColor: theme.input, borderColor: theme.border }]} onPress={() => sendMessage(p)}>
-                <Text style={[s.quickBtnText, { color: theme.primary }]}>{p}</Text>
+                <Text style={[s.quickBtnText, { color: theme.textSecondary }]}>{p}</Text>
               </ScalePressable>
             ))}
           </ScrollView>
         )}
 
-        <View style={[s.inputRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+        <View style={[s.inputRow, { backgroundColor: theme.card, borderTopColor: theme.borderLight }]}>
           <TextInput
             style={[s.input, { backgroundColor: theme.input, borderColor: theme.border, color: theme.text }]}
             placeholder="Ask about any chapter..."
@@ -262,11 +262,11 @@ export default function ChatScreen() {
             multiline
           />
           <ScalePressable
-            style={[s.sendBtn, { backgroundColor: theme.primary }, (!input.trim() || loading) && { backgroundColor: theme.textMuted, shadowOpacity: 0 }]}
+            style={[s.sendBtn, { backgroundColor: theme.text }, (!input.trim() || loading) && { opacity: 0.4 }]}
             onPress={() => sendMessage()}
             disabled={!input.trim() || loading}
           >
-            <Text style={s.sendBtnText}>↑</Text>
+            <Text style={[s.sendBtnText, { color: theme.bg }]}>↑</Text>
           </ScalePressable>
         </View>
       </KeyboardAvoidingView>
@@ -275,136 +275,53 @@ export default function ChatScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
-  
+  container: { flex: 1 },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e2e8f0',
   },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#0f172a' },
-  clearBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  clearBtnText: { fontSize: 13, fontWeight: '500', color: '#94a3b8' },
-  
+  headerTitle: { fontSize: 17, fontWeight: '600' },
+  clearBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  clearBtnText: { fontSize: 13, fontWeight: '500' },
+
   chatArea: { flex: 1 },
   messages: { flex: 1 },
   messagesInner: { padding: 16, paddingBottom: 8 },
-  
-  bubble: {
-    maxWidth: '82%',
-    marginBottom: 12,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  bubbleUser: {
-    backgroundColor: '#3b82f6',
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 4,
-  },
-  bubbleAI: {
-    backgroundColor: '#fff',
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  aiLabelContainer: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  aiLabel: { fontSize: 9, fontWeight: '700', color: '#64748b' },
-  bubbleText: { fontSize: 14, lineHeight: 20, color: '#1e293b' },
-  bubbleTextUser: { color: '#ffffff' },
-  
-  timestamp: {
-    fontSize: 10,
-    color: '#94a3b8',
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
+
+  bubble: { maxWidth: '82%', marginBottom: 12, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleUser: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  bubbleAI: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  aiLabelContainer: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, alignSelf: 'flex-start', marginBottom: 4 },
+  aiLabel: { fontSize: 9, fontWeight: '700' },
+  bubbleText: { fontSize: 14, lineHeight: 20 },
+
+  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
   timestampUser: { color: 'rgba(255,255,255,0.6)' },
-  
-  mdText: { fontSize: 14, lineHeight: 21, color: '#1e293b' },
+
+  mdText: { fontSize: 14, lineHeight: 21 },
   mdBold: { fontWeight: '700' },
   mdItalic: { fontStyle: 'italic' },
-  mdH1: { fontSize: 18, fontWeight: '800', color: '#0f172a', marginTop: 4, marginBottom: 2 },
-  mdH2: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginTop: 4, marginBottom: 2 },
-  mdH3: { fontSize: 14, fontWeight: '700', color: '#334155', marginTop: 4, marginBottom: 2 },
-  mdListItem: { fontSize: 14, lineHeight: 20, color: '#1e293b' },
-  
+  mdH1: { fontSize: 18, fontWeight: '800', marginTop: 4, marginBottom: 2 },
+  mdH2: { fontSize: 16, fontWeight: '700', marginTop: 4, marginBottom: 2 },
+  mdH3: { fontSize: 14, fontWeight: '700', marginTop: 4, marginBottom: 2 },
+  mdListItem: { fontSize: 14, lineHeight: 20 },
+
   typingBubble: { paddingVertical: 14 },
   typingRow: { flexDirection: 'row', gap: 4, marginLeft: 4 },
-  typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#94a3b8',
-  },
-  
+  typingDot: { width: 6, height: 6, borderRadius: 3 },
+
   quickBar: { paddingHorizontal: 16, maxHeight: 52 },
   quickBarContent: { gap: 8, paddingVertical: 4 },
-  quickBtn: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  quickBtnText: { fontSize: 12, color: '#1e40af', fontWeight: '600' },
-  
+  quickBtn: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  quickBtnText: { fontSize: 12, fontWeight: '600' },
+
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingBottom: 28,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    backgroundColor: '#fff',
-    gap: 8,
+    flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12,
+    paddingBottom: 28, paddingTop: 8, borderTopWidth: 1, gap: 8,
   },
-  input: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    maxHeight: 100,
-  },
-  sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sendBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0, elevation: 0 },
-  sendBtnText: { fontSize: 20, color: '#ffffff', fontWeight: '700', marginTop: -2 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, maxHeight: 100 },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
+  sendBtnText: { fontSize: 20, fontWeight: '700', marginTop: -2 },
 });

@@ -70,6 +70,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#545454',
   },
 });

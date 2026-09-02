@@ -21,7 +21,7 @@ export function Shimmer({ width = '100%', height = 20, borderRadius = 8, style }
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius, backgroundColor: '#e2e8f0', opacity },
+        { width, height, borderRadius, backgroundColor: '#d4d4d4', opacity },
         style,
       ]}
     />
@@ -89,7 +89,7 @@ const skelStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     marginBottom: 4,
     borderRadius: 10,
     gap: 10,

@@ -79,12 +79,12 @@ export const CHAPTERS = {
 };
 
 export const SUBJECT_COLORS = {
-  PHYSICS: { bg: '#bfdbfe', fg: '#1e40af', dot: '#3b82f6' },
-  Chemistry: { bg: '#fecaca', fg: '#991b1b', dot: '#ef4444' },
-  MATHS: { bg: '#bbf7d0', fg: '#166534', dot: '#22c55e' },
-  'COMPUTER SCIENCE': { bg: '#cffafe', fg: '#155e75', dot: '#06b6d4' },
-  ENGLISH: { bg: '#e9d5ff', fg: '#6b21a8', dot: '#a855f7' },
-  HINDI: { bg: '#fed7aa', fg: '#9a3412', dot: '#f97316' },
+  PHYSICS: { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
+  Chemistry: { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
+  MATHS: { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
+  'COMPUTER SCIENCE': { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
+  ENGLISH: { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
+  HINDI: { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5' },
 };
 
 export const EXAM_START = '2026-08-14';

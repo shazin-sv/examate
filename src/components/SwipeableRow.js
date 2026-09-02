@@ -72,11 +72,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  editAction: { backgroundColor: '#3b82f6' },
-  deleteAction: { backgroundColor: '#ef4444' },
-  editText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  deleteText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  contentContainer: { backgroundColor: '#fff' },
+  editAction: { backgroundColor: '#808080' },
+  deleteAction: { backgroundColor: '#545454' },
+  editText: { color: '#f0f0f0', fontWeight: '700', fontSize: 13 },
+  deleteText: { color: '#f0f0f0', fontWeight: '700', fontSize: 13 },
+  contentContainer: { backgroundColor: '#ffffff' },
   swipeHints: {
     position: 'absolute',
     right: 6,
@@ -90,5 +90,5 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  hintText: { fontSize: 9, color: '#94a3b8', fontWeight: '600' },
+  hintText: { fontSize: 9, color: '#b5b5b5', fontWeight: '600' },
 });

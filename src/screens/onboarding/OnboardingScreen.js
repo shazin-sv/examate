@@ -20,12 +20,12 @@ const RULES = [
 ];
 
 const PRESET_SUBJECTS = [
-  { name: 'Physics', color: '#3b82f6' },
-  { name: 'Chemistry', color: '#ef4444' },
-  { name: 'Mathematics', color: '#22c55e' },
-  { name: 'Computer Science', color: '#06b6d4' },
-  { name: 'English', color: '#a855f7' },
-  { name: 'Hindi', color: '#f97316' },
+  { name: 'Physics', color: '#545454' },
+  { name: 'Chemistry', color: '#545454' },
+  { name: 'Mathematics', color: '#545454' },
+  { name: 'Computer Science', color: '#545454' },
+  { name: 'English', color: '#545454' },
+  { name: 'Hindi', color: '#545454' },
 ];
 
 const EXAM_PRESETS = [
@@ -89,7 +89,7 @@ export default function OnboardingScreen({ onComplete }) {
         {subjects.map((subj, idx) => (
           <FadeScalePressable
             key={idx}
-            style={[s.subjectCard, subj.selected && { backgroundColor: subj.color + '12' }]}
+            style={[s.subjectCard, subj.selected && { backgroundColor: '#e8e8e8' }]}
             onPress={() => {
               const updated = [...subjects];
               updated[idx] = { ...updated[idx], selected: !updated[idx].selected };
@@ -98,8 +98,8 @@ export default function OnboardingScreen({ onComplete }) {
           >
             <View style={[s.subjectDot, { backgroundColor: subj.color }]} />
             <Text style={s.subjectName}>{subj.name}</Text>
-            <View style={[s.subjectToggle, subj.selected && { backgroundColor: '#dcfce7' }]}>
-              <Text style={[s.subjectToggleText, subj.selected && { color: '#16a346' }]}>
+            <View style={[s.subjectToggle, subj.selected && { backgroundColor: '#e8e8e8' }]}>
+              <Text style={[s.subjectToggleText, subj.selected && { color: '#545454' }]}>
                 {subj.selected ? 'ON' : 'OFF'}
               </Text>
             </View>
@@ -109,7 +109,7 @@ export default function OnboardingScreen({ onComplete }) {
           <TextInput
             style={s.addInput}
             placeholder="Add custom subject..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#b5b5b5"
             value={newSubjectName}
             onChangeText={setNewSubjectName}
           />
@@ -122,8 +122,7 @@ export default function OnboardingScreen({ onComplete }) {
                 Alert.alert('Exists', 'Subject already exists.');
                 return;
               }
-              const hue = Math.floor(Math.random() * 360);
-              setSubjects([...subjects, { name, color: `hsl(${hue}, 60%, 50%)`, selected: true }]);
+              setSubjects([...subjects, { name, color: '#545454', selected: true }]);
               setNewSubjectName('');
             }}
           >
@@ -151,7 +150,7 @@ export default function OnboardingScreen({ onComplete }) {
                 Alert.alert('Error', 'Could not create template: ' + e.message);
               }
             }}>
-              <Text style={s.excelBtnText}>📥 Download Template</Text>
+              <Text style={s.excelBtnText}>Download Template</Text>
             </ScalePressable>
             <ScalePressable style={[s.excelBtn, s.excelBtnAlt]} onPress={async () => {
               const imported = await importFromExcel();
@@ -168,7 +167,7 @@ export default function OnboardingScreen({ onComplete }) {
               setChaptersBySubject(updated);
               Alert.alert('Imported', 'Chapters imported successfully.');
             }}>
-              <Text style={s.excelBtnText}>📤 Upload Excel</Text>
+              <Text style={s.excelBtnText}>Upload Excel</Text>
             </ScalePressable>
           </View>
           {selectedSubjects.map(subj => {
@@ -176,7 +175,7 @@ export default function OnboardingScreen({ onComplete }) {
             return (
               <FadeScalePressable
                 key={subj.name}
-                style={[s.subjectCard, { backgroundColor: subj.color + '10' }]}
+                style={[s.subjectCard, { backgroundColor: '#e8e8e8' }]}
                 onPress={() => setActiveSubject(subj.name)}
               >
                 <View style={[s.subjectDot, { backgroundColor: subj.color }]} />
@@ -202,7 +201,7 @@ export default function OnboardingScreen({ onComplete }) {
           <TextInput
             style={[s.addInput, { flex: 1 }]}
             placeholder="Chapter name..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#b5b5b5"
             value={newChapter}
             onChangeText={setNewChapter}
             onSubmitEditing={() => {
@@ -221,7 +220,7 @@ export default function OnboardingScreen({ onComplete }) {
             returnKeyType="done"
           />
           <ScalePressable
-            style={[s.addBtnSmall, { backgroundColor: activeSubjectObj?.color || '#3b82f6' }]}
+            style={[s.addBtnSmall, { backgroundColor: '#545454' }]}
             onPress={() => {
               const name = newChapter.trim();
               if (!name) return;
@@ -242,7 +241,7 @@ export default function OnboardingScreen({ onComplete }) {
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {chaps.map((ch, i) => (
-            <FadeScalePressable key={i} style={[s.chapterRow, i % 2 === 0 && { backgroundColor: '#fafbfc' }]}>
+            <FadeScalePressable key={i} style={[s.chapterRow, i % 2 === 0 && { backgroundColor: '#f0f0f0' }]}>
               <Text style={s.chapterNum}>{i + 1}.</Text>
               <Text style={s.chapterName}>{ch}</Text>
               <ScalePressable onPress={() => {
@@ -277,7 +276,7 @@ export default function OnboardingScreen({ onComplete }) {
                 setExams(updated);
               }}
             >
-              <Text style={[s.examCheck, exam.selected && { color: '#22c55e' }]}>
+              <Text style={[s.examCheck, exam.selected && { color: '#545454' }]}>
                 {exam.selected ? '✓' : '○'}
               </Text>
             </Pressable>
@@ -299,14 +298,14 @@ export default function OnboardingScreen({ onComplete }) {
                     <Text style={s.examDateBtnText}>{exam.date || exam.tbd ? 'Edit' : 'Set'}</Text>
                   </Pressable>
                   <Pressable
-                    style={[s.examDateBtn, { backgroundColor: '#fef3c7' }]}
+                    style={[s.examDateBtn, { backgroundColor: '#e8e8e8' }]}
                     onPress={() => {
                       const updated = [...exams];
                       updated[idx] = { ...updated[idx], tbd: !updated[idx].tbd, date: updated[idx].tbd ? '' : updated[idx].date };
                       setExams(updated);
                     }}
                   >
-                    <Text style={[s.examDateBtnText, { color: '#92400e' }]}>{exam.tbd ? 'Set Date' : 'TBD'}</Text>
+                    <Text style={[s.examDateBtnText, { color: '#545454' }]}>{exam.tbd ? 'Set Date' : 'TBD'}</Text>
                   </Pressable>
                 </View>
               )}
@@ -317,7 +316,7 @@ export default function OnboardingScreen({ onComplete }) {
           <TextInput
             style={s.addInput}
             placeholder="Add custom exam..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#b5b5b5"
             value={newExamName}
             onChangeText={setNewExamName}
           />
@@ -431,7 +430,7 @@ export default function OnboardingScreen({ onComplete }) {
                 }
                 setDatePickerIdx(null);
               }}
-              style={{ fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', width: '100%', marginBottom: 12 }}
+              style={{ fontSize: 16, padding: '8px 12px', borderRadius: 8, border: '1px solid #d4d4d4', width: '100%', marginBottom: 12 }}
             />
             <ScalePressable style={s.webDatePickerClose} onPress={() => setDatePickerIdx(null)}>
               <Text style={s.webDatePickerCloseText}>Cancel</Text>
@@ -497,7 +496,7 @@ export default function OnboardingScreen({ onComplete }) {
             disabled={!canProceed() || saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#f0f0f0" />
             ) : (
               <Text style={s.nextBtnText}>Start Learning</Text>
             )}
@@ -509,142 +508,136 @@ export default function OnboardingScreen({ onComplete }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
+  container: { flex: 1, backgroundColor: '#f0f0f0' },
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 12 },
-  title: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  stepIndicator: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
-  progressBg: { height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, marginTop: 12 },
-  progressFill: { height: 4, backgroundColor: '#3b82f6', borderRadius: 2 },
+  title: { fontSize: 22, fontWeight: '800', color: '#545454' },
+  stepIndicator: { fontSize: 13, color: '#b5b5b5', marginTop: 4 },
+  progressBg: { height: 4, backgroundColor: '#d4d4d4', borderRadius: 2, marginTop: 12 },
+  progressFill: { height: 4, backgroundColor: '#545454', borderRadius: 2 },
   body: { flex: 1 },
   stepScroll: { flex: 1, paddingHorizontal: 24 },
-  stepDesc: { fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 20 },
+  stepDesc: { fontSize: 14, color: '#808080', marginBottom: 16, lineHeight: 20 },
   footer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32, paddingTop: 12 },
-  backFooterBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: '#fff' },
-  backFooterBtnText: { fontSize: 14, fontWeight: '700', color: '#475569' },
+  backFooterBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: '#ffffff' },
+  backFooterBtnText: { fontSize: 14, fontWeight: '700', color: '#808080' },
   nextBtn: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#545454',
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 12,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  nextBtnDisabled: { opacity: 0.5, shadowOpacity: 0, elevation: 0 },
-  nextBtnText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  nextBtnDisabled: { opacity: 0.5 },
+  nextBtnText: { fontSize: 14, fontWeight: '700', color: '#f0f0f0' },
 
   ruleCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d4d4d4',
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
   },
-  ruleCardSelected: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  ruleCardSelected: { backgroundColor: '#e8e8e8', borderColor: '#545454' },
   ruleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ruleName: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
-  ruleNameSelected: { color: '#3b82f6' },
+  ruleName: { fontSize: 16, fontWeight: '800', color: '#545454' },
+  ruleNameSelected: { color: '#545454' },
   ruleCheckContainer: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#545454',
     width: 24,
     height: 24,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ruleCheck: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  ruleDesc: { fontSize: 13, color: '#64748b', marginTop: 6, lineHeight: 18 },
+  ruleCheck: { fontSize: 14, fontWeight: '700', color: '#f0f0f0' },
+  ruleDesc: { fontSize: 13, color: '#808080', marginTop: 6, lineHeight: 18 },
 
   subjectCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
   },
   subjectDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  subjectName: { fontSize: 15, fontWeight: '700', color: '#0f172a', flex: 1 },
+  subjectName: { fontSize: 15, fontWeight: '700', color: '#545454', flex: 1 },
   subjectToggle: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#e8e8e8',
   },
-  subjectToggleText: { fontSize: 11, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
-  chapterCount: { fontSize: 12, color: '#94a3b8', marginRight: 8 },
-  arrow: { fontSize: 18, color: '#94a3b8' },
+  subjectToggleText: { fontSize: 11, fontWeight: '800', color: '#b5b5b5', letterSpacing: 0.5 },
+  chapterCount: { fontSize: 12, color: '#b5b5b5', marginRight: 8 },
+  arrow: { fontSize: 18, color: '#b5b5b5' },
 
   excelRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   excelBtn: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#e8e8e8',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#d4d4d4',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  excelBtnAlt: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
-  excelBtnText: { fontSize: 12, fontWeight: '700', color: '#166534' },
+  excelBtnAlt: { backgroundColor: '#e8e8e8', borderColor: '#d4d4d4' },
+  excelBtnText: { fontSize: 12, fontWeight: '700', color: '#545454' },
 
   addRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   addInput: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d4d4d4',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#0f172a',
+    color: '#545454',
   },
-  addBtnSmall: { backgroundColor: '#3b82f6', paddingHorizontal: 18, borderRadius: 10, justifyContent: 'center' },
-  addBtnSmallText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  addBtnSmall: { backgroundColor: '#545454', paddingHorizontal: 18, borderRadius: 10, justifyContent: 'center' },
+  addBtnSmallText: { fontSize: 14, fontWeight: '700', color: '#f0f0f0' },
 
   chapterEditor: { flex: 1, paddingHorizontal: 24 },
   backBtn: { marginTop: 8, marginBottom: 4 },
-  backBtnText: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
-  chapterSubject: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
+  backBtnText: { fontSize: 14, fontWeight: '600', color: '#545454' },
+  chapterSubject: { fontSize: 22, fontWeight: '800', color: '#545454', marginBottom: 12 },
   chapterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e8e8e8',
   },
-  chapterNum: { fontSize: 14, fontWeight: '700', color: '#94a3b8', width: 30 },
-  chapterName: { fontSize: 14, fontWeight: '600', color: '#334155', flex: 1 },
-  chapterDelete: { fontSize: 14, color: '#ef4444', fontWeight: '700', paddingHorizontal: 8 },
-  emptyBox: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 24, alignItems: 'center', marginTop: 8 },
-  emptyText: { fontSize: 13, color: '#94a3b8' },
+  chapterNum: { fontSize: 14, fontWeight: '700', color: '#b5b5b5', width: 30 },
+  chapterName: { fontSize: 14, fontWeight: '600', color: '#545454', flex: 1 },
+  chapterDelete: { fontSize: 14, color: '#808080', fontWeight: '700', paddingHorizontal: 8 },
+  emptyBox: { backgroundColor: '#e8e8e8', borderRadius: 12, padding: 24, alignItems: 'center', marginTop: 8 },
+  emptyText: { fontSize: 13, color: '#b5b5b5' },
 
-  examCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8 },
+  examCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 12, padding: 14, marginBottom: 8 },
   examToggle: { marginRight: 12, justifyContent: 'center' },
-  examCheck: { fontSize: 20, color: '#cbd5e1' },
+  examCheck: { fontSize: 20, color: '#b5b5b5' },
   examInfo: { flex: 1 },
-  examName: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  examName: { fontSize: 15, fontWeight: '700', color: '#545454' },
   examDateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 },
-  examDateSet: { fontSize: 12, color: '#22c55e', fontWeight: '600' },
-  examDateTbd: { fontSize: 12, color: '#f59e0b', fontWeight: '600' },
-  examDateNeeded: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
-  examDateBtn: { backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  examDateBtnText: { fontSize: 11, fontWeight: '700', color: '#3b82f6' },
+  examDateSet: { fontSize: 12, color: '#545454', fontWeight: '600' },
+  examDateTbd: { fontSize: 12, color: '#808080', fontWeight: '600' },
+  examDateNeeded: { fontSize: 12, color: '#808080', fontWeight: '600' },
+  examDateBtn: { backgroundColor: '#e8e8e8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  examDateBtnText: { fontSize: 11, fontWeight: '700', color: '#545454' },
 
   webDatePickerOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 999,
   },
   webDatePickerModal: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12,
+    backgroundColor: '#ffffff', borderRadius: 16, padding: 24, width: 320,
   },
-  webDatePickerTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
-  webDatePickerClose: { backgroundColor: '#f1f5f9', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  webDatePickerCloseText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  webDatePickerTitle: { fontSize: 16, fontWeight: '700', color: '#545454', marginBottom: 16 },
+  webDatePickerClose: { backgroundColor: '#e8e8e8', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  webDatePickerCloseText: { fontSize: 14, fontWeight: '600', color: '#808080' },
 });

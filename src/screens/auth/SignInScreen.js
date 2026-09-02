@@ -103,7 +103,7 @@ export default function SignInScreen({ onAuthChange }) {
             <TextInput
               style={s.input}
               placeholder="Your name"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#b5b5b5"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -115,7 +115,7 @@ export default function SignInScreen({ onAuthChange }) {
         <TextInput
           style={s.input}
           placeholder="you@example.com"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor="#b5b5b5"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -127,7 +127,7 @@ export default function SignInScreen({ onAuthChange }) {
         <TextInput
           style={s.input}
           placeholder="At least 8 characters"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor="#b5b5b5"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -155,24 +155,24 @@ export default function SignInScreen({ onAuthChange }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f7f5' },
+  container: { flex: 1, backgroundColor: '#f0f0f0' },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, maxWidth: 420, width: '100%', alignSelf: 'center' },
   header: { marginBottom: 32 },
-  logo: { fontSize: 24, fontWeight: '600', color: '#0f172a', letterSpacing: -0.4 },
-  subtitle: { fontSize: 15, color: '#64748b', marginTop: 8, lineHeight: 22 },
-  label: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 8, marginTop: 16 },
+  logo: { fontSize: 24, fontWeight: '600', color: '#545454', letterSpacing: -0.4 },
+  subtitle: { fontSize: 15, color: '#808080', marginTop: 8, lineHeight: 22 },
+  label: { fontSize: 12, fontWeight: '600', color: '#808080', marginBottom: 8, marginTop: 16 },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d4d4d4',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#0f172a',
+    color: '#545454',
   },
   btn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#545454',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -180,8 +180,8 @@ const s = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnPressed: { opacity: 0.7 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#ffffff' },
+  btnText: { fontSize: 15, fontWeight: '600', color: '#f0f0f0' },
   linkBtn: { alignItems: 'center', marginTop: 20 },
-  linkText: { fontSize: 14, color: '#64748b' },
-  linkBold: { color: '#0f172a', fontWeight: '600' },
+  linkText: { fontSize: 14, color: '#808080' },
+  linkBold: { color: '#545454', fontWeight: '600' },
 });

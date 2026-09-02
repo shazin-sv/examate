@@ -67,8 +67,7 @@ export default function ChapterLogScreen() {
   }
 
   function getSubjectColor(subj) {
-    if (subj.color) return { bg: subj.color + '18', fg: subj.color, dot: subj.color, light: subj.color + '30' };
-    return SUBJECT_COLORS[subj.name] || { bg: '#f1f5f9', fg: '#475569', dot: '#94a3b8', light: '#f1f5f9' };
+    return { bg: '#e8e8e8', fg: '#545454', dot: '#b5b5b5', light: '#e8e8e8' };
   }
 
   function getChaptersForActive() {
@@ -84,7 +83,7 @@ export default function ChapterLogScreen() {
 
   const activeSubject = subjects.find(s => s.id === activeSubjectId);
   const activeChapters = getChaptersForActive();
-  const sc = activeSubject ? getSubjectColor(activeSubject) : { dot: '#94a3b8', fg: '#475569', light: '#f1f5f9' };
+  const sc = activeSubject ? getSubjectColor(activeSubject) : { dot: '#b5b5b5', fg: '#545454', light: '#e8e8e8' };
 
   async function doAdd() {
     const name = newChapter.trim();
@@ -150,7 +149,6 @@ export default function ChapterLogScreen() {
           <Text style={[s.subtitle, { color: theme.textMuted }]}>No subjects yet</Text>
         </View>
         <View style={s.emptyState}>
-          <Text style={s.emptyStateEmoji}>📚</Text>
           <Text style={[s.emptyTitle, { color: theme.text }]}>No subjects found</Text>
           <Text style={[s.emptyDesc, { color: theme.textMuted }]}>Complete onboarding to add subjects and chapters.</Text>
         </View>
@@ -173,16 +171,16 @@ export default function ChapterLogScreen() {
           return (
             <ScalePressable
               key={subj.id}
-              style={[s.tab, isActive && { backgroundColor: c.dot }]}
+              style={[s.tab, { backgroundColor: theme.card }, isActive && { backgroundColor: theme.text }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActiveSubjectId(subj.id);
               }}
             >
-              <Text style={[s.tabText, isActive && { color: '#fff' }]}>{subj.name}</Text>
+              <Text style={[s.tabText, { color: theme.textSecondary }, isActive && { color: theme.bg }]}>{subj.name}</Text>
               {progress.total > 0 && (
-                <View style={[s.tabProgress, { backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : c.light }]}>
-                  <View style={[s.tabProgressFill, { width: `${(progress.scheduled / progress.total) * 100}%`, backgroundColor: isActive ? '#fff' : c.dot }]} />
+                <View style={[s.tabProgress, { backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : theme.cardAlt }]}>
+                  <View style={[s.tabProgressFill, { width: `${(progress.scheduled / progress.total) * 100}%`, backgroundColor: isActive ? '#fff' : theme.border }]} />
                 </View>
               )}
             </ScalePressable>
@@ -191,8 +189,8 @@ export default function ChapterLogScreen() {
       </ScrollView>
 
       {activeSubject && (
-        <ScalePressable style={[s.addBtn, { backgroundColor: sc.dot }]} onPress={() => setShowAdd(true)}>
-          <Text style={s.addBtnText}>+ Add Chapter</Text>
+        <ScalePressable style={[s.addBtn, { backgroundColor: theme.text }]} onPress={() => setShowAdd(true)}>
+          <Text style={[s.addBtnText, { color: theme.bg }]}>+ Add Chapter</Text>
         </ScalePressable>
       )}
 
@@ -207,8 +205,8 @@ export default function ChapterLogScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={theme.primary}
-              colors={[theme.primary]}
+              tintColor={theme.textSecondary}
+              colors={[theme.textSecondary]}
             />
           }
         >
@@ -216,15 +214,15 @@ export default function ChapterLogScreen() {
             const dates = schedule[activeSubject?.name]?.[ch.name] || [];
             const isScheduled = dates.length > 0;
             return (
-              <FadeScalePressable key={ch.id} style={[s.row, i % 2 === 1 && { backgroundColor: theme.cardAlt }]}>
-                <View style={[s.rowDot, { backgroundColor: isScheduled ? '#22c55e' : sc.dot }]} />
+              <FadeScalePressable key={ch.id} style={[s.row, { backgroundColor: theme.card }, i % 2 === 1 && { backgroundColor: theme.cardAlt }]}>
+                <View style={[s.rowDot, { backgroundColor: isScheduled ? theme.text : theme.border }]} />
                 <View style={s.rowNum}>
-                  <Text style={[s.rowNumText, { color: sc.fg }]}>{i + 1}</Text>
+                  <Text style={[s.rowNumText, { color: theme.textSecondary }]}>{i + 1}</Text>
                 </View>
                 <View style={s.rowContent}>
                   <Text style={[s.rowText, { color: theme.text }]}>{ch.name}</Text>
                   {isScheduled ? (
-                    <Text style={[s.rowDates, { color: '#16a346' }]}>✓ {dates.sort().join(', ')}</Text>
+                    <Text style={[s.rowDates, { color: theme.textSecondary }]}>✓ {dates.sort().join(', ')}</Text>
                   ) : (
                     <Text style={[s.rowUnscheduled, { color: theme.textMuted }]}>Not scheduled</Text>
                   )}
@@ -240,8 +238,8 @@ export default function ChapterLogScreen() {
                 >
                   <Text style={s.editBtnText}>✏️</Text>
                 </ScalePressable>
-                <ScalePressable style={s.delBtn} onPress={() => doDelete(ch.id, ch.name)}>
-                  <Text style={s.delBtnText}>✕</Text>
+                <ScalePressable style={[s.delBtn, { backgroundColor: theme.cardAlt }]} onPress={() => doDelete(ch.id, ch.name)}>
+                  <Text style={[s.delBtnText, { color: theme.textMuted }]}>✕</Text>
                 </ScalePressable>
               </FadeScalePressable>
             );
@@ -271,8 +269,8 @@ export default function ChapterLogScreen() {
             <ScalePressable onPress={() => setShowAdd(false)} style={s.cancelBtn}>
               <Text style={[s.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
             </ScalePressable>
-            <ScalePressable onPress={doAdd} style={[s.confirmBtn, { backgroundColor: sc.dot }]}>
-              <Text style={s.confirmBtnText}>Add</Text>
+            <ScalePressable onPress={doAdd} style={[s.confirmBtn, { backgroundColor: theme.text }]}>
+              <Text style={[s.confirmBtnText, { color: theme.bg }]}>Add</Text>
             </ScalePressable>
           </View>
         </View>
@@ -293,8 +291,8 @@ export default function ChapterLogScreen() {
             <ScalePressable onPress={() => setShowEdit(false)} style={s.cancelBtn}>
               <Text style={[s.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
             </ScalePressable>
-            <ScalePressable onPress={doEdit} style={[s.confirmBtn, { backgroundColor: sc.dot }]}>
-              <Text style={s.confirmBtnText}>Save</Text>
+            <ScalePressable onPress={doEdit} style={[s.confirmBtn, { backgroundColor: theme.text }]}>
+              <Text style={[s.confirmBtnText, { color: theme.bg }]}>Save</Text>
             </ScalePressable>
           </View>
         </View>
@@ -304,107 +302,54 @@ export default function ChapterLogScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
+  container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: '800', color: '#0f172a', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
-  
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, marginTop: 2 },
+
   tabBar: { paddingHorizontal: 16, maxHeight: 60 },
   tabBarContent: { gap: 8, paddingVertical: 4 },
-  tab: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    minWidth: 80,
-  },
-  tabText: { fontSize: 13, fontWeight: '700', color: '#475569', textAlign: 'center' },
-  tabProgress: {
-    height: 3,
-    borderRadius: 1.5,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  tabProgressFill: {
-    height: 3,
-    borderRadius: 1.5,
-  },
-  
-  addBtn: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  addBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  
+  tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, minWidth: 80 },
+  tabText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  tabProgress: { height: 3, borderRadius: 1.5, marginTop: 6, overflow: 'hidden' },
+  tabProgressFill: { height: 3, borderRadius: 1.5 },
+
+  addBtn: { marginHorizontal: 16, marginTop: 12, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  addBtnText: { fontSize: 14, fontWeight: '700' },
+
   list: { flex: 1, marginTop: 12 },
   listContent: { paddingHorizontal: 16 },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#f1f5f9',
-    backgroundColor: '#fff',
-    marginBottom: 4,
-    borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14,
+    borderBottomWidth: 0.5, marginBottom: 4, borderRadius: 10,
   },
   rowDot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
   rowNum: { width: 28, alignItems: 'center', marginRight: 10 },
   rowNumText: { fontSize: 13, fontWeight: '700' },
   rowContent: { flex: 1 },
   rowText: { fontSize: 14, fontWeight: '600' },
-  rowDates: { fontSize: 11, color: '#16a346', marginTop: 3 },
-  rowUnscheduled: { fontSize: 11, color: '#cbd5e1', marginTop: 3 },
+  rowDates: { fontSize: 11, marginTop: 3 },
+  rowUnscheduled: { fontSize: 11, marginTop: 3 },
   editBtn: { paddingHorizontal: 12, paddingVertical: 8 },
   editBtnText: { fontSize: 16 },
-  delBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#fef2f2' },
-  delBtnText: { fontSize: 14, color: '#ef4444', fontWeight: '700' },
-  
+  delBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  delBtnText: { fontSize: 14, fontWeight: '700' },
+
   modalContent: { padding: 24 },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  modalSub: { fontSize: 14, color: '#94a3b8', marginTop: 2, marginBottom: 20 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#0f172a',
-    marginBottom: 12,
-  },
+  modalTitle: { fontSize: 22, fontWeight: '800' },
+  modalSub: { fontSize: 14, marginTop: 2, marginBottom: 20 },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 12 },
   modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
   cancelBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
-  cancelBtnText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
+  cancelBtnText: { fontSize: 14, fontWeight: '600' },
   confirmBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 },
-  confirmBtnText: { fontSize: 14, color: '#fff', fontWeight: '700' },
-  
+  confirmBtnText: { fontSize: 14, fontWeight: '700' },
+
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-  emptyStateEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
-  emptyDesc: { fontSize: 14, color: '#94a3b8', textAlign: 'center', lineHeight: 20 },
-  
-  emptyChapters: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  emptyChaptersText: { fontSize: 15, fontWeight: '600', color: '#64748b' },
-  emptyChaptersSubtext: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  emptyChapters: { borderRadius: 12, padding: 32, alignItems: 'center', marginTop: 8 },
+  emptyChaptersText: { fontSize: 15, fontWeight: '600' },
+  emptyChaptersSubtext: { fontSize: 13, marginTop: 4 },
 });

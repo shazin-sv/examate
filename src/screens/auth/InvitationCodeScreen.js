@@ -47,7 +47,7 @@ export default function InvitationCodeScreen() {
             <TextInput
               style={s.input}
               placeholder="Enter code"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#b5b5b5"
               value={code}
               onChangeText={setCode}
               autoCapitalize="characters"
@@ -64,7 +64,7 @@ export default function InvitationCodeScreen() {
             <TextInput
               style={s.input}
               placeholder="you@example.com"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#b5b5b5"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -87,53 +87,38 @@ export default function InvitationCodeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafbfc' },
+  container: { flex: 1, backgroundColor: '#f0f0f0' },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
   header: { marginBottom: 36 },
   logoContainer: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#545454',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 16,
     alignSelf: 'flex-start',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  logo: { fontSize: 28, fontWeight: '900', color: '#ffffff', letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: '#64748b', marginTop: 16, lineHeight: 22 },
+  logo: { fontSize: 28, fontWeight: '900', color: '#f0f0f0', letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: '#808080', marginTop: 16, lineHeight: 22 },
   form: {},
-  label: { fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
+  label: { fontSize: 11, fontWeight: '700', color: '#808080', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d4d4d4',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#0f172a',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    color: '#545454',
   },
   btn: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#545454',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 28,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
+  btnText: { fontSize: 16, fontWeight: '700', color: '#f0f0f0' },
   linkBtn: { alignItems: 'center', marginTop: 20 },
-  linkText: { fontSize: 14, color: '#64748b' },
+  linkText: { fontSize: 14, color: '#808080' },
 });

@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Text, View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { supabase, profile } from './src/lib/supabase';
+import { requestNotificationPermission, setNotificationChannel } from './src/lib/notifications';
 import SignInScreen from './src/screens/auth/SignInScreen';
 import OnboardingScreen from './src/screens/onboarding/OnboardingScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
@@ -50,7 +51,7 @@ function AuthenticatedApp({ onSignOut }) {
   if (checking) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#545454" />
         <Text style={styles.loadingText}>Loading</Text>
       </View>
     );
@@ -77,13 +78,18 @@ export default function App() {
       setSession(session);
     });
 
+    if (Platform.OS !== 'web') {
+      setNotificationChannel();
+      requestNotificationPermission();
+    }
+
     return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#545454" />
         <Text style={styles.loadingText}>Loading</Text>
       </View>
     );
@@ -109,6 +115,6 @@ function ThemedStatusBar() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f7f5' },
-  loadingText: { fontSize: 15, fontWeight: '500', marginTop: 16, color: '#94a3b8' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' },
+  loadingText: { fontSize: 15, fontWeight: '500', marginTop: 16, color: '#b5b5b5' },
 });

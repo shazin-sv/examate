@@ -4,7 +4,7 @@ import {
   SafeAreaView, Alert, ActivityIndicator, Platform, Pressable,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { db, profile } from '../../lib/supabase';
+import { db, profile } from '../../lib/storage';
 import { downloadTemplate, importFromExcel } from '../../lib/xlsx';
 import { ScalePressable, FadeScalePressable } from '../../components/AnimatedPressable';
 

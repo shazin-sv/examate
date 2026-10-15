@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, Alert, TextInput, Platform,
 } from 'react-native';
 import { ScalePressable } from '../components/AnimatedPressable';
-import { db, auth, supabase, profile } from '../lib/supabase';
+import { db, profile } from '../lib/storage';
 import { useTheme } from '../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import {
@@ -33,9 +33,9 @@ export default function AccountScreen() {
   }, []);
 
   async function loadUser() {
-    const u = await auth.getUser();
+    const u = await profile.get();
     setUser(u);
-    setNameInput(u?.user_metadata?.display_name || '');
+    setNameInput(u?.display_name || '');
   }
 
   async function loadStats() {
@@ -106,22 +106,13 @@ export default function AccountScreen() {
     const trimmed = nameInput.trim();
     if (!trimmed) return;
     try {
-      await supabase.auth.updateUser({ data: { display_name: trimmed } });
-      await profile?.update?.({ display_name: trimmed });
-      setUser({ ...user, user_metadata: { ...user?.user_metadata, display_name: trimmed } });
+      await profile.update({ display_name: trimmed });
+      setUser({ ...user, display_name: trimmed });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       console.log(e);
     }
     setEditingName(false);
-  }
-
-  function handleSignOut() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => auth.signOut() },
-    ]);
   }
 
   function handleResetOnboarding() {
@@ -132,16 +123,16 @@ export default function AccountScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Reset', style: 'destructive', onPress: async () => {
-          await db.updateProfile?.({ onboarding_complete: false });
+          await profile.update({ onboarding_complete: false });
           Alert.alert('Done', 'Please restart the app.');
         }},
       ]
     );
   }
 
-  const displayName = user?.user_metadata?.display_name || 'Student';
+  const displayName = user?.display_name || 'Student';
   const email = user?.email || '';
-  const initial = displayName?.[0]?.toUpperCase() || email?.[0]?.toUpperCase() || '?';
+  const initial = displayName?.[0]?.toUpperCase() || '?';
 
   const totalScheduled = schedule.length;
   const uniqueDates = [...new Set(schedule.map(s => s.date_key))].length;
@@ -171,7 +162,7 @@ export default function AccountScreen() {
               <Text style={[s.userName, { color: theme.text }]}>{displayName}</Text>
             </ScalePressable>
           )}
-          <Text style={[s.userEmail, { color: theme.textMuted }]}>{email}</Text>
+          {email ? <Text style={[s.userEmail, { color: theme.textMuted }]}>{email}</Text> : null}
         </View>
 
         <View style={s.statsRow}>
@@ -263,10 +254,6 @@ export default function AccountScreen() {
           <ScalePressable style={[s.actionBtn, { backgroundColor: theme.card }]} onPress={handleResetOnboarding}>
             <Text style={[s.actionBtnText, { color: theme.text }]}>Reset Onboarding</Text>
             <Text style={[s.actionBtnDesc, { color: theme.textMuted }]}>Retake the subject/chapter setup</Text>
-          </ScalePressable>
-          <ScalePressable style={[s.actionBtn, { backgroundColor: theme.cardAlt }]} onPress={handleSignOut}>
-            <Text style={[s.actionBtnText, { color: theme.text }]}>Sign Out</Text>
-            <Text style={[s.actionBtnDesc, { color: theme.textMuted }]}>Sign out of your account</Text>
           </ScalePressable>
         </View>
 

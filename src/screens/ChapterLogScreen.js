@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SUBJECT_COLORS } from '../data/chapters';
-import { db } from '../lib/supabase';
+import { db } from '../lib/storage';
 import { ScalePressable, FadeScalePressable } from '../components/AnimatedPressable';
 import AnimatedBottomSheet from '../components/AnimatedBottomSheet';
 import { ChapterListSkeleton } from '../components/Shimmer';
